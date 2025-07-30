@@ -115,13 +115,24 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             max-width: 500px; 
             margin: 0 auto; 
         }
-        #search-input { 
-            width: 100%; 
-            padding: 15px 20px 15px 50px; 
-            border: 1px solid var(--border-color); 
-            border-radius: 12px; 
-            font-size: 16px; 
-            box-sizing: border-box; 
+        #search-input {
+            width: 100%;
+            padding: 15px 110px 15px 50px;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        #search-type {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            padding: 6px 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: white;
+            font-size: 14px;
         }
         .search-icon { 
             position: absolute; 
@@ -286,6 +297,17 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             background: rgba(0,0,0,0.05);
             border-radius: 12px;
         }
+        .class-info {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: var(--subtle-text);
+            font-weight: 500;
+            padding: 2px 6px;
+            background: rgba(0,0,0,0.05);
+            border-radius: 12px;
+        }
         .location-chip::before { 
             content: '🏫'; 
             font-size: 10px; 
@@ -299,7 +321,8 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             .title-icon { margin-right: 0; margin-bottom: 5px; height: 2em; max-width: 120px; }
             #search-section { padding: 20px 15px; margin-bottom: 20px; }
             .search-container { max-width: 100%; }
-            #search-input { width: 100%; padding: 12px 15px 12px 45px; font-size: 16px; border-radius: 8px; box-sizing: border-box; }
+            #search-input { width: 100%; padding: 12px 90px 12px 45px; font-size: 16px; border-radius: 8px; box-sizing: border-box; }
+            #search-type { right: 10px; padding: 4px 6px; font-size: 13px; }
             .search-icon { left: 15px; }
             .favorite-chips { gap: 8px; justify-content: flex-start; flex-wrap: wrap; }
             .favorite-chip { padding: 6px 12px; font-size: 13px; white-space: nowrap; }
@@ -334,18 +357,24 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
 // JavaScript 코드 생성 함수
 function generateTimetableJS(dataJsonString) {
     return `
-        const allStudents = ${dataJsonString};
-        allStudents.forEach((student, index) => {
+        const dataObj = ${dataJsonString};
+        const allStudents = dataObj.students || [];
+        const allClassrooms = dataObj.classrooms || [];
+        allStudents.forEach(student => {
             student.uniqueId = student.name + '||' + student.homeroom;
         });
+        allClassrooms.forEach(room => { room.uniqueId = room.name; });
 
         let favorites = JSON.parse(localStorage.getItem('favStudents') || '[]');
-        let filteredData = []; 
+        let filteredData = [];
         let selectedIndex = -1;
+        let searchType = 'student';
 
         const searchInput = document.getElementById('search-input');
+        const searchTypeSelect = document.getElementById('search-type');
         const autocompleteDropdown = document.getElementById('autocomplete-dropdown');
         const scheduleContainer = document.getElementById('schedule-container');
+        const favoritesSection = document.querySelector('.favorites-section');
 
         function init() {
             setupEventListeners();
@@ -354,6 +383,15 @@ function generateTimetableJS(dataJsonString) {
         }
 
         function setupEventListeners() {
+            searchTypeSelect.addEventListener('change', () => {
+                searchType = searchTypeSelect.value;
+                searchInput.placeholder = searchType === 'student' ? '학생 이름을 입력하세요...' : '교실 이름을 입력하세요...';
+                searchInput.value = '';
+                filteredData = [];
+                hideDropdown();
+                updateFavoriteChips();
+                showEmptyState();
+            });
             searchInput.addEventListener('input', e => {
                 const query = e.target.value.trim().toLowerCase();
                 if (query === '') {
@@ -361,7 +399,11 @@ function generateTimetableJS(dataJsonString) {
                     hideDropdown();
                     return;
                 }
-                filteredData = allStudents.filter(student => student.name.toLowerCase().includes(query));
+                if (searchType === 'student') {
+                    filteredData = allStudents.filter(student => student.name.toLowerCase().includes(query));
+                } else {
+                    filteredData = allClassrooms.filter(room => room.name.toLowerCase().includes(query));
+                }
                 updateAutocomplete();
             });
 
@@ -384,39 +426,73 @@ function generateTimetableJS(dataJsonString) {
 
         function updateAutocomplete() {
             if (filteredData.length === 0) { hideDropdown(); return; }
-            autocompleteDropdown.innerHTML = filteredData.map(item => \`<div class="autocomplete-item" onclick="selectItem('\${item.uniqueId}')">🧑‍🎓 \${item.name} (\${item.homeroom})</div>\`).join('');
+            autocompleteDropdown.innerHTML = filteredData.map(item => {
+                if (searchType === 'student') {
+                    return `<div class="autocomplete-item" onclick="selectItem('${item.uniqueId}')">🧑‍🎓 ${item.name} (${item.homeroom})</div>`;
+                } else {
+                    return `<div class="autocomplete-item" onclick="selectItem('${item.uniqueId}')">🏫 ${item.name}</div>`;
+                }
+            }).join('');
             showDropdown();
         }
 
         function selectItem(uniqueId) {
-            const student = allStudents.find(s => s.uniqueId === uniqueId);
-            if (!student) return;
-            searchInput.value = student.name;
+            if (searchType === 'student') {
+                const student = allStudents.find(s => s.uniqueId === uniqueId);
+                if (!student) return;
+                searchInput.value = student.name;
+            } else {
+                const room = allClassrooms.find(r => r.uniqueId === uniqueId);
+                if (!room) return;
+                searchInput.value = room.name;
+            }
             hideDropdown();
             displaySchedule(uniqueId);
         }
 
         function displaySchedule(uniqueId) {
-            const student = allStudents.find(s => s.uniqueId === uniqueId);
-            if (!student) { showEmptyState(); return; }
-            const isFavorite = favorites.includes(uniqueId);
-            const days = ['월', '화', '수', '목', '금'];
-            const { maxPeriods, periodCounts } = student;
-            let tableHTML = \`<div class="schedule-header"><div class="schedule-info"><h2>\${student.name} <small>(\${student.homeroom})</small></h2></div><div class="schedule-actions"><button class="action-btn \${isFavorite ? 'favorited' : ''}" onclick="toggleFavorite('\${uniqueId}')"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="\${isFavorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg> \${isFavorite ? '즐겨찾기됨' : '즐겨찾기'}</button><button class="action-btn" onclick="window.print()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg> 인쇄</button></div></div><div class="table-container"><table><thead><tr><th>교시</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th></tr></thead><tbody>\`;
-            for (let i = 0; i < maxPeriods; i++) {
-                tableHTML += \`<tr><td>\${i + 1}</td>\`;
-                days.forEach((day, dayIndex) => {
-                    if (i < (periodCounts[dayIndex] || 0)) {
-                        const cellContent = student.schedule[day][i] || '';
-                        tableHTML += \`<td>\${cellContent}</td>\`;
-                    } else {
-                        tableHTML += \`<td style="background-color: #f8f9fa;"></td>\`;
-                    }
-                });
-                tableHTML += '</tr>';
+            if (searchType === 'student') {
+                const student = allStudents.find(s => s.uniqueId === uniqueId);
+                if (!student) { showEmptyState(); return; }
+                const isFavorite = favorites.includes(uniqueId);
+                const days = ['월', '화', '수', '목', '금'];
+                const { maxPeriods, periodCounts } = student;
+                let tableHTML = `<div class="schedule-header"><div class="schedule-info"><h2>${student.name} <small>(${student.homeroom})</small></h2></div><div class="schedule-actions"><button class="action-btn ${isFavorite ? 'favorited' : ''}" onclick="toggleFavorite('${uniqueId}')"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="${isFavorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg> ${isFavorite ? '즐겨찾기됨' : '즐겨찾기'}</button><button class="action-btn" onclick="window.print()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg> 인쇄</button></div></div><div class="table-container"><table><thead><tr><th>교시</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th></tr></thead><tbody>`;
+                for (let i = 0; i < maxPeriods; i++) {
+                    tableHTML += `<tr><td>${i + 1}</td>`;
+                    days.forEach((day, dayIndex) => {
+                        if (i < (periodCounts[dayIndex] || 0)) {
+                            const cellContent = student.schedule[day][i] || '';
+                            tableHTML += `<td>${cellContent}</td>`;
+                        } else {
+                            tableHTML += `<td style="background-color: #f8f9fa;"></td>`;
+                        }
+                    });
+                    tableHTML += '</tr>';
+                }
+                tableHTML += '</tbody></table></div>';
+                scheduleContainer.innerHTML = tableHTML;
+            } else {
+                const room = allClassrooms.find(r => r.uniqueId === uniqueId);
+                if (!room) { showEmptyState(); return; }
+                const days = ['월', '화', '수', '목', '금'];
+                const { maxPeriods, periodCounts } = room;
+                let tableHTML = `<div class="schedule-header"><div class="schedule-info"><h2>${room.name}</h2></div><div class="schedule-actions"><button class="action-btn" onclick="window.print()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg> 인쇄</button></div></div><div class="table-container"><table><thead><tr><th>교시</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th></tr></thead><tbody>`;
+                for (let i = 0; i < maxPeriods; i++) {
+                    tableHTML += `<tr><td>${i + 1}</td>`;
+                    days.forEach((day, dayIndex) => {
+                        if (i < (periodCounts[dayIndex] || 0)) {
+                            const cellContent = room.schedule[day][i] || '';
+                            tableHTML += `<td>${cellContent}</td>`;
+                        } else {
+                            tableHTML += `<td style="background-color: #f8f9fa;"></td>`;
+                        }
+                    });
+                    tableHTML += '</tr>';
+                }
+                tableHTML += '</tbody></table></div>';
+                scheduleContainer.innerHTML = tableHTML;
             }
-            tableHTML += '</tbody></table></div>';
-            scheduleContainer.innerHTML = tableHTML;
         }
 
         function toggleFavorite(uniqueId) {
@@ -430,17 +506,24 @@ function generateTimetableJS(dataJsonString) {
 
         function updateFavoriteChips() {
             const container = document.getElementById('favorite-chips');
-            if (favorites.length === 0) { container.innerHTML = \`<span style="color: var(--subtle-text); font-size: 13px;">...</span>\`; return; }
+            if (searchType !== 'student') { container.innerHTML = ''; return; }
+            if (favorites.length === 0) { container.innerHTML = `<span style="color: var(--subtle-text); font-size: 13px;">...</span>`; return; }
             container.innerHTML = favorites.map(uniqueId => {
                 const student = allStudents.find(s => s.uniqueId === uniqueId);
                 if (!student) return '';
-                return \`<button class="favorite-chip" onclick="selectItem('\${uniqueId}')">\${student.name} (\${student.homeroom.replace('-', '학년')})</button>\`
+                return `<button class="favorite-chip" onclick="selectItem('${uniqueId}')">${student.name} (${student.homeroom.replace('-', '학년')})</button>`
             }).join('');
         }
         
         function showDropdown() { if (filteredData.length > 0) autocompleteDropdown.style.display = 'block'; }
         function hideDropdown() { autocompleteDropdown.style.display = 'none'; selectedIndex = -1; }
-        function showEmptyState() { scheduleContainer.innerHTML = \`<div class="empty-state"><div class="empty-state-icon">🧑‍🎓</div><h3>학생 이름을 검색하세요</h3></div>\`; }
+        function showEmptyState() {
+            if (searchType === 'student') {
+                scheduleContainer.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🧑‍🎓</div><h3>학생 이름을 검색하세요</h3></div>`;
+            } else {
+                scheduleContainer.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🏫</div><h3>교실 이름을 검색하세요</h3></div>`;
+            }
+        }
 
         init();
     `;
@@ -474,6 +557,10 @@ function getHtmlTemplate(dataJsonString, pageTitle, iconBase64, selectedTheme = 
                     </svg>
                 </div>
                 <input type="text" id="search-input" placeholder="학생 이름을 입력하세요...">
+                <select id="search-type">
+                    <option value="student">학생별</option>
+                    <option value="classroom">교실별</option>
+                </select>
                 <div class="autocomplete-dropdown" id="autocomplete-dropdown"></div>
             </div>
             <div class="favorites-section">
