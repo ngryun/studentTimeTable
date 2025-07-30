@@ -1,4 +1,4 @@
-/* 학생 시간표 생성기 - 메인 스타일시트 */
+/* 학생 시간표 생성기 - 메인 스타일시트 (업그레이드 버전) */
 
 /* 기본 스타일 */
 body {
@@ -285,6 +285,34 @@ h2 {
     font-size: 13px;
 }
 
+/* 기능 선택 스타일 */
+.features-grid .feature-option label:hover {
+    border-color: #007bff;
+    background-color: #f8f9ff;
+    transform: translateY(-1px);
+}
+
+.features-grid .feature-option input:checked + div {
+    opacity: 1;
+}
+
+.features-grid .feature-option input:not(:checked) + div {
+    opacity: 0.6;
+}
+
+.features-grid .feature-option input:checked {
+    accent-color: #007bff;
+}
+
+.features-grid .feature-option label {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.features-grid .feature-option input:checked + div .feature-title {
+    color: #007bff;
+    font-weight: 700;
+}
+
 /* 버튼 스타일 */
 button {
     width: 100%;
@@ -421,6 +449,16 @@ button:not(:disabled):hover {
 
 /* 모바일 반응형 스타일 */
 @media (max-width: 768px) {
+    .features-grid {
+        grid-template-columns: 1fr !important;
+        gap: 10px;
+    }
+    
+    .features-grid .feature-option label {
+        padding: 12px;
+        font-size: 14px;
+    }
+    
     .theme-grid {
         grid-template-columns: repeat(2, 1fr);
         gap: 10px;
@@ -436,5 +474,39 @@ button:not(:disabled):hover {
     
     .theme-name {
         font-size: 11px;
+    }
+    
+    body {
+        padding: 10px;
+    }
+    
+    #app-container {
+        max-width: 100%;
+        padding: 20px;
+    }
+    
+    .upload-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .process-steps {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    
+    h1 {
+        font-size: 1.5em;
+        margin-bottom: 20px;
+    }
+    
+    button {
+        font-size: 16px;
+        padding: 12px;
+    }
+    
+    #timetable-title {
+        font-size: 14px;
+        padding: 10px;
     }
 }

@@ -1,4 +1,4 @@
-// 학생 시간표 HTML 템플릿 생성기
+// 학생 시간표 HTML 템플릿 생성기 (정규식 오류 수정 버전)
 
 // 테마별 컬러 팔레트 정의
 const themes = {
@@ -83,7 +83,7 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             color: var(--text-color); 
         }
         #app-container { 
-            max-width: 1100px; 
+            max-width: 1200px; 
             margin: 20px auto; 
             background-color: var(--card-background); 
             padding: 40px; 
@@ -96,6 +96,7 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             justify-content: center; 
             text-align: center; 
             font-size: 2em; 
+            margin-bottom: 30px;
         }
         .title-icon { 
             height: 2.5em; 
@@ -104,6 +105,40 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             max-width: 150px; 
             object-fit: contain; 
         }
+
+        /* 탭 네비게이션 스타일 */
+        .tab-navigation {
+            display: flex;
+            gap: 0;
+            margin-bottom: 30px;
+            background: var(--accent-color);
+            border-radius: 12px;
+            padding: 6px;
+            overflow-x: auto;
+        }
+        .tab-button {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            background: transparent;
+            color: var(--text-color);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+            font-size: 15px;
+            white-space: nowrap;
+        }
+        .tab-button.active {
+            background: var(--card-background);
+            color: var(--primary-color);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .tab-button:hover:not(.active) {
+            background: rgba(255,255,255,0.5);
+        }
+
+        /* 검색 섹션 스타일 */
         #search-section { 
             background: var(--accent-color); 
             padding: 25px; 
@@ -177,6 +212,8 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             border: none; 
             box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
         }
+
+        /* 시간표 헤더 스타일 */
         .schedule-header { 
             display: flex; 
             justify-content: space-between; 
@@ -201,6 +238,8 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             background: #FFC107; 
             color: white; 
         }
+
+        /* 테이블 스타일 */
         table { 
             width: 100%; 
             border-collapse: separate; 
@@ -242,6 +281,8 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
         tbody tr:first-child td { 
             border-top: 1px solid var(--border-color); 
         }
+
+        /* 빈 상태 스타일 */
         .empty-state { 
             text-align: center; 
             padding: 80px 20px; 
@@ -291,12 +332,64 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             font-size: 10px; 
         }
 
+        /* 새로운 조회 모드 전용 스타일 */
+        .class-schedule-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .student-card {
+            background: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .student-card h4 {
+            margin: 0 0 10px 0;
+            color: var(--primary-color);
+            font-size: 1.1em;
+        }
+        .period-info {
+            font-size: 13px;
+            margin: 5px 0;
+            padding: 5px 8px;
+            background: var(--accent-color);
+            border-radius: 4px;
+        }
+
+        .usage-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: var(--accent-color);
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        .stat-label {
+            font-size: 14px;
+            color: var(--subtle-text);
+            margin-top: 5px;
+        }
+
         /* 반응형 스타일 */
         @media (max-width: 768px) {
             body { padding: 10px; }
             #app-container { padding: 20px; margin: 10px auto; border-radius: 12px; }
             h1 { font-size: 1.5em; margin-bottom: 20px; flex-direction: column; gap: 10px; }
             .title-icon { margin-right: 0; margin-bottom: 5px; height: 2em; max-width: 120px; }
+            .tab-navigation { flex-direction: column; }
+            .tab-button { flex: none; }
             #search-section { padding: 20px 15px; margin-bottom: 20px; }
             .search-container { max-width: 100%; }
             #search-input { width: 100%; padding: 12px 15px 12px 45px; font-size: 16px; border-radius: 8px; box-sizing: border-box; }
@@ -314,13 +407,15 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             .empty-state { padding: 60px 20px; }
             .empty-state-icon { font-size: 3em; }
             .empty-state h3 { font-size: 1.2em; margin-top: 15px; }
+            .class-schedule-grid { grid-template-columns: 1fr; }
+            .usage-stats { grid-template-columns: repeat(2, 1fr); }
         }
 
         /* 인쇄 스타일 */
         @media print {
             body { background: white; padding: 0; margin: 0; }
             #app-container { box-shadow: none; padding: 15px; margin: 0; max-width: 100%; }
-            #search-section, .schedule-actions, .title-icon { display: none; }
+            #search-section, .schedule-actions, .title-icon, .tab-navigation { display: none; }
             h1 { font-size: 14pt; }
             .schedule-info h2 { font-size: 12pt; }
             table { font-size: 9pt; }
@@ -331,26 +426,127 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
     `;
 }
 
-// JavaScript 코드 생성 함수
-function generateTimetableJS(dataJsonString) {
+// JavaScript 코드 생성 함수 - 정규식 오류 완전 수정 버전
+function generateTimetableJS(dataJsonString, enabledFeatures) {
+    // 디버깅: enabledFeatures 검증
+    if (!enabledFeatures || typeof enabledFeatures !== 'object') {
+        console.warn('⚠️ enabledFeatures가 올바르지 않습니다. 기본값을 사용합니다.');
+        enabledFeatures = { student: true, class: true, classroom: true, teacher: true };
+    }
+    
     return `
+        // 디버깅: 생성된 JavaScript에서 features 확인
+        console.log('🎯 Templates received features:', ${JSON.stringify(enabledFeatures)});
+        
         const allStudents = ${dataJsonString};
+        const enabledFeatures = ${JSON.stringify(enabledFeatures)};
+        
+        // 정규식 패턴들을 미리 정의 (템플릿 리터럴 오류 방지)
+        const regexPatterns = {
+            locationChip: new RegExp('<span class="location-chip">([^<]+)</span>', 'g'),
+            subjectName: new RegExp('<div class="subject-name">([^<]+)</div>', 'g'),
+            teacherName: new RegExp('<span class="teacher-name">([^<]+)</span>', 'g')
+        };
+        
+        // 추가 디버깅
+        console.log('📊 Final enabledFeatures in runtime:', enabledFeatures);
+        console.log('✅ Available features check:', {
+            student: enabledFeatures.student,
+            class: enabledFeatures.class,
+            classroom: enabledFeatures.classroom,
+            teacher: enabledFeatures.teacher
+        });
+        
+        // 데이터 전처리
         allStudents.forEach((student, index) => {
             student.uniqueId = student.name + '||' + student.homeroom;
         });
 
+        // 각종 데이터 추출
+        const classData = extractClassData(allStudents);
+        const classroomData = extractClassroomData(allStudents);
+        const teacherData = extractTeacherData(allStudents);
+
         let favorites = JSON.parse(localStorage.getItem('favStudents') || '[]');
         let filteredData = []; 
         let selectedIndex = -1;
+        let currentMode = ''; // 초기값은 빈 문자열로, setupTabs에서 설정됨
 
         const searchInput = document.getElementById('search-input');
         const autocompleteDropdown = document.getElementById('autocomplete-dropdown');
         const scheduleContainer = document.getElementById('schedule-container');
 
         function init() {
+            console.log('🚀 Initializing with features:', enabledFeatures);
+            setupTabs();
             setupEventListeners();
+            updateSearchPlaceholder(); // 현재 모드에 맞는 플레이스홀더 설정
             updateFavoriteChips();
             showEmptyState();
+        }
+
+        function setupTabs() {
+            const tabsHtml = [];
+            const availableModes = [];
+            
+            console.log('🏗️ Setting up tabs with features:', enabledFeatures); // 디버깅용
+            
+            if (enabledFeatures.student) {
+                availableModes.push('student');
+                tabsHtml.push('<button class="tab-button" data-mode="student">🧑‍🎓 학생별</button>');
+                console.log('✅ Student tab added');
+            }
+            if (enabledFeatures.class) {
+                availableModes.push('class');
+                tabsHtml.push('<button class="tab-button" data-mode="class">🏫 반별</button>');
+                console.log('✅ Class tab added');
+            }
+            if (enabledFeatures.classroom) {
+                availableModes.push('classroom');
+                tabsHtml.push('<button class="tab-button" data-mode="classroom">🚪 교실별</button>');
+                console.log('✅ Classroom tab added');
+            }
+            if (enabledFeatures.teacher) {
+                availableModes.push('teacher');
+                tabsHtml.push('<button class="tab-button" data-mode="teacher">👨‍🏫 선생님별</button>');
+                console.log('✅ Teacher tab added');
+            }
+            
+            const tabNavigation = document.querySelector('.tab-navigation');
+            
+            if (availableModes.length === 0) {
+                // 모든 기능이 비활성화된 경우
+                console.error('❌ No features enabled!');
+                tabNavigation.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">선택된 조회 기능이 없습니다.</div>';
+                return;
+            }
+            
+            // 첫 번째 사용 가능한 모드를 기본값으로 설정
+            currentMode = availableModes[0];
+            console.log('🎯 Current mode set to:', currentMode); // 디버깅용
+            
+            tabNavigation.innerHTML = tabsHtml.join('');
+            console.log('📋 Generated tabs:', tabsHtml.length);
+            
+            // 첫 번째 탭을 활성화
+            const firstTab = document.querySelector('.tab-button');
+            if (firstTab) {
+                firstTab.classList.add('active');
+                console.log('🎯 First tab activated:', firstTab.dataset.mode);
+            }
+            
+            // 탭 클릭 이벤트
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    console.log('🖱️ Tab clicked:', btn.dataset.mode);
+                    document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentMode = btn.dataset.mode;
+                    updateSearchPlaceholder();
+                    clearSearch();
+                    showEmptyState();
+                });
+            });
         }
 
         function setupEventListeners() {
@@ -361,7 +557,24 @@ function generateTimetableJS(dataJsonString) {
                     hideDropdown();
                     return;
                 }
-                filteredData = allStudents.filter(student => student.name.toLowerCase().includes(query));
+                
+                switch(currentMode) {
+                    case 'student':
+                        filteredData = allStudents.filter(student => student.name.toLowerCase().includes(query));
+                        break;
+                    case 'class':
+                        filteredData = Object.keys(classData).filter(cls => cls.toLowerCase().includes(query))
+                            .map(cls => ({uniqueId: cls, name: cls + '반', type: 'class'}));
+                        break;
+                    case 'classroom':
+                        filteredData = Object.keys(classroomData).filter(room => room.toLowerCase().includes(query))
+                            .map(room => ({uniqueId: room, name: room, type: 'classroom'}));
+                        break;
+                    case 'teacher':
+                        filteredData = Object.keys(teacherData).filter(teacher => teacher.toLowerCase().includes(query))
+                            .map(teacher => ({uniqueId: teacher, name: teacher + ' 선생님', type: 'teacher'}));
+                        break;
+                }
                 updateAutocomplete();
             });
 
@@ -371,7 +584,13 @@ function generateTimetableJS(dataJsonString) {
                 switch(e.key) {
                     case 'ArrowDown': e.preventDefault(); selectedIndex = (selectedIndex + 1) % items.length; break;
                     case 'ArrowUp': e.preventDefault(); selectedIndex = (selectedIndex - 1 + items.length) % items.length; break;
-                    case 'Enter': e.preventDefault(); if (selectedIndex >= 0 && items[selectedIndex]) { items[selectedIndex].click(); } else if (filteredData.length > 0) { selectItem(filteredData[0].uniqueId); } return;
+                    case 'Enter': e.preventDefault(); 
+                        if (selectedIndex >= 0 && items[selectedIndex]) { 
+                            items[selectedIndex].click(); 
+                        } else if (filteredData.length > 0) { 
+                            selectItem(filteredData[0].uniqueId); 
+                        } 
+                        return;
                     case 'Escape': hideDropdown(); return;
                 }
                 items.forEach((item, index) => item.classList.toggle('selected', index === selectedIndex));
@@ -382,41 +601,415 @@ function generateTimetableJS(dataJsonString) {
             });
         }
 
+        function updateSearchPlaceholder() {
+            const placeholders = {
+                student: '학생 이름을 입력하세요...',
+                class: '반을 입력하세요... (예: 1-1)',
+                classroom: '교실을 입력하세요... (예: 101)',
+                teacher: '선생님 성함을 입력하세요...'
+            };
+            searchInput.placeholder = placeholders[currentMode] || '검색어를 입력하세요...';
+        }
+
+        function clearSearch() {
+            searchInput.value = '';
+            filteredData = [];
+            hideDropdown();
+        }
+
         function updateAutocomplete() {
             if (filteredData.length === 0) { hideDropdown(); return; }
-            autocompleteDropdown.innerHTML = filteredData.map(item => \`<div class="autocomplete-item" onclick="selectItem('\${item.uniqueId}')">🧑‍🎓 \${item.name} (\${item.homeroom})</div>\`).join('');
+            
+            const icons = {student: '🧑‍🎓', class: '🏫', classroom: '🚪', teacher: '👨‍🏫'};
+            
+            autocompleteDropdown.innerHTML = filteredData.map(item => {
+                const icon = icons[item.type || 'student'];
+                const displayName = item.type === 'student' ? item.name + ' (' + item.homeroom + ')' : item.name;
+                return '<div class="autocomplete-item" onclick="selectItem(\\'' + item.uniqueId + '\\')">' + icon + ' ' + displayName + '</div>';
+            }).join('');
             showDropdown();
         }
 
         function selectItem(uniqueId) {
-            const student = allStudents.find(s => s.uniqueId === uniqueId);
-            if (!student) return;
-            searchInput.value = student.name;
-            hideDropdown();
-            displaySchedule(uniqueId);
+            switch(currentMode) {
+                case 'student':
+                    const student = allStudents.find(s => s.uniqueId === uniqueId);
+                    if (student) {
+                        searchInput.value = student.name;
+                        hideDropdown();
+                        displayStudentSchedule(uniqueId);
+                    }
+                    break;
+                case 'class':
+                    searchInput.value = uniqueId + '반';
+                    hideDropdown();
+                    displayClassSchedule(uniqueId);
+                    break;
+                case 'classroom':
+                    searchInput.value = uniqueId;
+                    hideDropdown();
+                    displayClassroomSchedule(uniqueId);
+                    break;
+                case 'teacher':
+                    searchInput.value = uniqueId + ' 선생님';
+                    hideDropdown();
+                    displayTeacherSchedule(uniqueId);
+                    break;
+            }
         }
 
-        function displaySchedule(uniqueId) {
+        function displayStudentSchedule(uniqueId) {
             const student = allStudents.find(s => s.uniqueId === uniqueId);
             if (!student) { showEmptyState(); return; }
+            
             const isFavorite = favorites.includes(uniqueId);
             const days = ['월', '화', '수', '목', '금'];
             const { maxPeriods, periodCounts } = student;
-            let tableHTML = \`<div class="schedule-header"><div class="schedule-info"><h2>\${student.name} <small>(\${student.homeroom})</small></h2></div><div class="schedule-actions"><button class="action-btn \${isFavorite ? 'favorited' : ''}" onclick="toggleFavorite('\${uniqueId}')"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="\${isFavorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg> \${isFavorite ? '즐겨찾기됨' : '즐겨찾기'}</button><button class="action-btn" onclick="window.print()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg> 인쇄</button></div></div><div class="table-container"><table><thead><tr><th>교시</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th></tr></thead><tbody>\`;
+            
+            let tableHTML = '<div class="schedule-header">' +
+                    '<div class="schedule-info">' +
+                        '<h2>' + student.name + ' <small>(' + student.homeroom + ')</small></h2>' +
+                    '</div>' +
+                    '<div class="schedule-actions">' +
+                        '<button class="action-btn ' + (isFavorite ? 'favorited' : '') + '" onclick="toggleFavorite(\\'' + uniqueId + '\\');">' +
+                            '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="' + (isFavorite ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="2">' +
+                                '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>' +
+                            '</svg> ' +
+                            (isFavorite ? '즐겨찾기됨' : '즐겨찾기') +
+                        '</button>' +
+                        '<button class="action-btn" onclick="window.print()">' +
+                            '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+                                '<polyline points="6 9 6 2 18 2 18 9"></polyline>' +
+                                '<path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2 2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>' +
+                                '<rect x="6" y="14" width="12" height="8"></rect>' +
+                            '</svg> ' +
+                            '인쇄' +
+                        '</button>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="table-container">' +
+                    '<table>' +
+                        '<thead>' +
+                            '<tr><th>교시</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th></tr>' +
+                        '</thead>' +
+                        '<tbody>';
+            
             for (let i = 0; i < maxPeriods; i++) {
-                tableHTML += \`<tr><td>\${i + 1}</td>\`;
+                tableHTML += '<tr><td>' + (i + 1) + '</td>';
                 days.forEach((day, dayIndex) => {
                     if (i < (periodCounts[dayIndex] || 0)) {
                         const cellContent = student.schedule[day][i] || '';
-                        tableHTML += \`<td>\${cellContent}</td>\`;
+                        tableHTML += '<td>' + cellContent + '</td>';
                     } else {
-                        tableHTML += \`<td style="background-color: #f8f9fa;"></td>\`;
+                        tableHTML += '<td style="background-color: #f8f9fa;"></td>';
                     }
                 });
                 tableHTML += '</tr>';
             }
+            
             tableHTML += '</tbody></table></div>';
             scheduleContainer.innerHTML = tableHTML;
+        }
+
+        function displayClassSchedule(classId) {
+            const students = classData[classId] || [];
+            if (students.length === 0) { showEmptyState(); return; }
+            
+            const days = ['월', '화', '수', '목', '금'];
+            const maxPeriods = Math.max(...students.map(s => s.maxPeriods));
+            
+            let html = '<div class="schedule-header">' +
+                    '<div class="schedule-info">' +
+                        '<h2>' + classId + '반 시간표 <small>(총 ' + students.length + '명)</small></h2>' +
+                    '</div>' +
+                    '<div class="schedule-actions">' +
+                        '<button class="action-btn" onclick="window.print()">' +
+                            '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+                                '<polyline points="6 9 6 2 18 2 18 9"></polyline>' +
+                                '<path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2 2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>' +
+                                '<rect x="6" y="14" width="12" height="8"></rect>' +
+                            '</svg> ' +
+                            '인쇄' +
+                        '</button>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="class-schedule-grid">';
+            
+            students.forEach(student => {
+                html += '<div class="student-card">' +
+                        '<h4>' + student.name + '</h4>';
+                
+                days.forEach(day => {
+                    for (let i = 0; i < maxPeriods; i++) {
+                        const content = student.schedule[day][i];
+                        if (content) {
+                            // HTML 태그 제거하고 텍스트만 추출
+                            const textContent = content.replace(/<[^>]*>/g, ' ').replace(/\\s+/g, ' ').trim();
+                            if (textContent) {
+                                html += '<div class="period-info">' + day + (i+1) + ': ' + textContent + '</div>';
+                            }
+                        }
+                    }
+                });
+                
+                html += '</div>';
+            });
+            
+            html += '</div>';
+            scheduleContainer.innerHTML = html;
+        }
+
+        function displayClassroomSchedule(classroomId) {
+            const scheduleData = classroomData[classroomId] || {};
+            const days = ['월', '화', '수', '목', '금'];
+            const maxPeriods = 7; // 기본값
+            
+            let html = '<div class="schedule-header">' +
+                    '<div class="schedule-info">' +
+                        '<h2>' + classroomId + ' 교실 사용 현황</h2>' +
+                    '</div>' +
+                    '<div class="schedule-actions">' +
+                        '<button class="action-btn" onclick="window.print()">' +
+                            '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+                                '<polyline points="6 9 6 2 18 2 18 9"></polyline>' +
+                                '<path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2 2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>' +
+                                '<rect x="6" y="14" width="12" height="8"></rect>' +
+                            '</svg> ' +
+                            '인쇄' +
+                        '</button>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="table-container">' +
+                    '<table>' +
+                        '<thead>' +
+                            '<tr><th>교시</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th></tr>' +
+                        '</thead>' +
+                        '<tbody>';
+            
+            for (let i = 0; i < maxPeriods; i++) {
+                html += '<tr><td>' + (i + 1) + '</td>';
+                days.forEach(day => {
+                    const periodKey = day + (i + 1);
+                    const usageInfo = scheduleData[periodKey] || [];
+                    
+                    if (usageInfo.length > 0) {
+                        const content = usageInfo.map(info => 
+                            '<div class="subject-name">' + info.subject + '</div>' +
+                             '<div class="details">' +
+                                 '<span class="teacher-name">' + info.teacher + '</span><br>' +
+                                 '<small>' + info.students.join(', ') + '</small>' +
+                             '</div>'
+                        ).join('<hr style="margin: 8px 0; border: 1px solid #eee;">');
+                        html += '<td>' + content + '</td>';
+                    } else {
+                        html += '<td style="background-color: #f8f9fa; color: #999;">비어있음</td>';
+                    }
+                });
+                html += '</tr>';
+            }
+            
+            html += '</tbody></table></div>';
+            scheduleContainer.innerHTML = html;
+        }
+
+        function displayTeacherSchedule(teacherId) {
+            const scheduleData = teacherData[teacherId] || {};
+            const days = ['월', '화', '수', '목', '금'];
+            const maxPeriods = 7; // 기본값
+            
+            let html = '<div class="schedule-header">' +
+                    '<div class="schedule-info">' +
+                        '<h2>' + teacherId + ' 선생님 시간표</h2>' +
+                    '</div>' +
+                    '<div class="schedule-actions">' +
+                        '<button class="action-btn" onclick="window.print()">' +
+                            '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+                                '<polyline points="6 9 6 2 18 2 18 9"></polyline>' +
+                                '<path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2 2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>' +
+                                '<rect x="6" y="14" width="12" height="8"></rect>' +
+                            '</svg> ' +
+                            '인쇄' +
+                        '</button>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="table-container">' +
+                    '<table>' +
+                        '<thead>' +
+                            '<tr><th>교시</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th></tr>' +
+                        '</thead>' +
+                        '<tbody>';
+            
+            for (let i = 0; i < maxPeriods; i++) {
+                html += '<tr><td>' + (i + 1) + '</td>';
+                days.forEach(day => {
+                    const periodKey = day + (i + 1);
+                    const classInfo = scheduleData[periodKey] || [];
+                    
+                    if (classInfo.length > 0) {
+                        const content = classInfo.map(info => 
+                            '<div class="subject-name">' + info.subject + '</div>' +
+                             '<div class="details">' +
+                                 '<span class="location-chip">' + info.classroom + '</span><br>' +
+                                 '<small>' + info.students.join(', ') + '</small>' +
+                             '</div>'
+                        ).join('<hr style="margin: 8px 0; border: 1px solid #eee;">');
+                        html += '<td>' + content + '</td>';
+                    } else {
+                        html += '<td style="background-color: #f8f9fa; color: #999;">공강</td>';
+                    }
+                });
+                html += '</tr>';
+            }
+            
+            html += '</tbody></table></div>';
+            scheduleContainer.innerHTML = html;
+        }
+
+        // 데이터 추출 함수들 - 정규식 문제 해결
+        function extractClassData(students) {
+            const classData = {};
+            students.forEach(student => {
+                if (!classData[student.homeroom]) {
+                    classData[student.homeroom] = [];
+                }
+                classData[student.homeroom].push(student);
+            });
+            return classData;
+        }
+
+        function extractClassroomData(students) {
+            const classroomData = {};
+            const days = ['월', '화', '수', '목', '금'];
+            
+            students.forEach(student => {
+                days.forEach(day => {
+                    for (let i = 0; i < student.maxPeriods; i++) {
+                        const content = student.schedule[day][i];
+                        if (content) {
+                            // 정규식 대신 indexOf와 substring 사용
+                            let classroom = '';
+                            let subject = '';
+                            let teacher = '';
+                            
+                            // 교실 정보 추출
+                            const locationStart = content.indexOf('<span class="location-chip">');
+                            const locationEnd = content.indexOf('</span>', locationStart);
+                            if (locationStart !== -1 && locationEnd !== -1) {
+                                classroom = content.substring(locationStart + 28, locationEnd);
+                            }
+                            
+                            // 과목 정보 추출
+                            const subjectStart = content.indexOf('<div class="subject-name">');
+                            const subjectEnd = content.indexOf('</div>', subjectStart);
+                            if (subjectStart !== -1 && subjectEnd !== -1) {
+                                subject = content.substring(subjectStart + 26, subjectEnd);
+                            }
+                            
+                            // 교사 정보 추출
+                            const teacherStart = content.indexOf('<span class="teacher-name">');
+                            const teacherEnd = content.indexOf('</span>', teacherStart);
+                            if (teacherStart !== -1 && teacherEnd !== -1) {
+                                teacher = content.substring(teacherStart + 27, teacherEnd);
+                            }
+                            
+                            if (classroom && subject) {
+                                const periodKey = day + (i + 1);
+                                
+                                if (!classroomData[classroom]) {
+                                    classroomData[classroom] = {};
+                                }
+                                if (!classroomData[classroom][periodKey]) {
+                                    classroomData[classroom][periodKey] = [];
+                                }
+                                
+                                // 중복 체크
+                                const existing = classroomData[classroom][periodKey].find(
+                                    item => item.subject === subject && item.teacher === teacher
+                                );
+                                
+                                if (existing) {
+                                    existing.students.push(student.name);
+                                } else {
+                                    classroomData[classroom][periodKey].push({
+                                        subject: subject,
+                                        teacher: teacher,
+                                        students: [student.name]
+                                    });
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+            
+            return classroomData;
+        }
+
+        function extractTeacherData(students) {
+            const teacherData = {};
+            const days = ['월', '화', '수', '목', '금'];
+            
+            students.forEach(student => {
+                days.forEach(day => {
+                    for (let i = 0; i < student.maxPeriods; i++) {
+                        const content = student.schedule[day][i];
+                        if (content) {
+                            let classroom = '';
+                            let subject = '';
+                            let teacher = '';
+                            
+                            // 교실 정보 추출
+                            const locationStart = content.indexOf('<span class="location-chip">');
+                            const locationEnd = content.indexOf('</span>', locationStart);
+                            if (locationStart !== -1 && locationEnd !== -1) {
+                                classroom = content.substring(locationStart + 28, locationEnd);
+                            }
+                            
+                            // 과목 정보 추출
+                            const subjectStart = content.indexOf('<div class="subject-name">');
+                            const subjectEnd = content.indexOf('</div>', subjectStart);
+                            if (subjectStart !== -1 && subjectEnd !== -1) {
+                                subject = content.substring(subjectStart + 26, subjectEnd);
+                            }
+                            
+                            // 교사 정보 추출
+                            const teacherStart = content.indexOf('<span class="teacher-name">');
+                            const teacherEnd = content.indexOf('</span>', teacherStart);
+                            if (teacherStart !== -1 && teacherEnd !== -1) {
+                                teacher = content.substring(teacherStart + 27, teacherEnd);
+                            }
+                            
+                            if (teacher && subject) {
+                                const periodKey = day + (i + 1);
+                                
+                                if (!teacherData[teacher]) {
+                                    teacherData[teacher] = {};
+                                }
+                                if (!teacherData[teacher][periodKey]) {
+                                    teacherData[teacher][periodKey] = [];
+                                }
+                                
+                                // 중복 체크
+                                const existing = teacherData[teacher][periodKey].find(
+                                    item => item.subject === subject && item.classroom === classroom
+                                );
+                                
+                                if (existing) {
+                                    existing.students.push(student.name);
+                                } else {
+                                    teacherData[teacher][periodKey].push({
+                                        subject: subject,
+                                        classroom: classroom,
+                                        students: [student.name]
+                                    });
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+            
+            return teacherData;
         }
 
         function toggleFavorite(uniqueId) {
@@ -425,29 +1018,50 @@ function generateTimetableJS(dataJsonString) {
             else favorites.push(uniqueId);
             localStorage.setItem('favStudents', JSON.stringify(favorites));
             updateFavoriteChips();
-            if(document.querySelector('.schedule-info h2')) displaySchedule(uniqueId);
+            if(document.querySelector('.schedule-info h2')) displayStudentSchedule(uniqueId);
         }
 
         function updateFavoriteChips() {
             const container = document.getElementById('favorite-chips');
-            if (favorites.length === 0) { container.innerHTML = \`<span style="color: var(--subtle-text); font-size: 13px;">...</span>\`; return; }
+            if (favorites.length === 0) { 
+                container.innerHTML = '<span style="color: var(--subtle-text); font-size: 13px;">즐겨찾기한 학생이 없습니다</span>'; 
+                return; 
+            }
             container.innerHTML = favorites.map(uniqueId => {
                 const student = allStudents.find(s => s.uniqueId === uniqueId);
                 if (!student) return '';
-                return \`<button class="favorite-chip" onclick="selectItem('\${uniqueId}')">\${student.name} (\${student.homeroom.replace('-', '학년')})</button>\`
+                return '<button class="favorite-chip" onclick="selectItem(\\'' + uniqueId + '\\')">' + student.name + ' (' + student.homeroom + ')</button>';
             }).join('');
         }
         
         function showDropdown() { if (filteredData.length > 0) autocompleteDropdown.style.display = 'block'; }
         function hideDropdown() { autocompleteDropdown.style.display = 'none'; selectedIndex = -1; }
-        function showEmptyState() { scheduleContainer.innerHTML = \`<div class="empty-state"><div class="empty-state-icon">🧑‍🎓</div><h3>학생 이름을 검색하세요</h3></div>\`; }
+        function showEmptyState() { 
+            const emptyStates = {
+                student: '<div class="empty-state"><div class="empty-state-icon">🧑‍🎓</div><h3>학생 이름을 검색하세요</h3></div>',
+                class: '<div class="empty-state"><div class="empty-state-icon">🏫</div><h3>반을 검색하세요</h3><p>예: 1-1, 2-3</p></div>',
+                classroom: '<div class="empty-state"><div class="empty-state-icon">🚪</div><h3>교실을 검색하세요</h3><p>예: 101, 음악실</p></div>',
+                teacher: '<div class="empty-state"><div class="empty-state-icon">👨‍🏫</div><h3>선생님 성함을 검색하세요</h3></div>'
+            };
+            scheduleContainer.innerHTML = emptyStates[currentMode] || '<div class="empty-state"><div class="empty-state-icon">🔍</div><h3>검색어를 입력하세요</h3></div>'; 
+        }
 
+        // 초기화 실행
         init();
     `;
 }
 
-// 메인 HTML 템플릿 생성 함수
-function getHtmlTemplate(dataJsonString, pageTitle, iconBase64, selectedTheme = 'serenity') {
+// 메인 HTML 템플릿 생성 함수 - 수정된 버전
+function getHtmlTemplate(dataJsonString, pageTitle, iconBase64, selectedTheme = 'serenity', enabledFeatures = {student: true, class: true, classroom: true, teacher: true}) {
+    // 디버깅: 매개변수 검증
+    console.log('🎯 Template received parameters:', {
+        dataLength: dataJsonString?.length || 0,
+        pageTitle,
+        hasIcon: !!iconBase64,
+        selectedTheme,
+        enabledFeatures
+    });
+    
     return `<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -465,6 +1079,11 @@ function getHtmlTemplate(dataJsonString, pageTitle, iconBase64, selectedTheme = 
             ${iconBase64 ? `<img src="${iconBase64}" alt="logo" class="title-icon">` : '📅'}
             <span>${pageTitle}</span>
         </h1>
+        
+        <div class="tab-navigation">
+            <!-- 탭은 JavaScript에서 동적으로 생성됩니다 -->
+        </div>
+        
         <div id="search-section">
             <div class="search-container">
                 <div class="search-icon">
@@ -481,10 +1100,12 @@ function getHtmlTemplate(dataJsonString, pageTitle, iconBase64, selectedTheme = 
                 <div class="favorite-chips" id="favorite-chips"></div>
             </div>
         </div>
+        
         <div id="schedule-container"></div>
     </div>
+    
     <script>
-        ${generateTimetableJS(dataJsonString)}
+        ${generateTimetableJS(dataJsonString, enabledFeatures)}
     </script>
 </body>
 </html>`;
