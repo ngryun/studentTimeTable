@@ -740,30 +740,40 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
                             '인쇄' +
                         '</button>' +
                     '</div>' +
-                '</div>' +
-                '<div class="class-schedule-grid">';
+                '</div>';
             
+            // 각 학생별로 개별 테이블 생성
             students.forEach(student => {
-                html += '<div class="student-card">' +
-                        '<h4>' + student.name + '</h4>';
+                html += '<div style="margin-bottom: 30px;">' +
+                        '<h3 style="margin: 20px 0 15px 0; color: var(--primary-color);">' + 
+                        student.name;
+                if (student.studentId) {
+                    html += ' <small style="color: var(--subtle-text);">(' + student.studentId + ')</small>';
+                }
+                html += '</h3>' +
+                        '<div class="table-container">' +
+                            '<table>' +
+                                '<thead>' +
+                                    '<tr><th>교시</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th></tr>' +
+                                '</thead>' +
+                                '<tbody>';
                 
-                days.forEach(day => {
-                    for (let i = 0; i < maxPeriods; i++) {
-                        const content = student.schedule[day][i];
-                        if (content) {
-                            // HTML 태그 제거하고 텍스트만 추출
-                            const textContent = content.replace(/<[^>]*>/g, ' ').replace(/\\s+/g, ' ').trim();
-                            if (textContent) {
-                                html += '<div class="period-info">' + day + (i+1) + ': ' + textContent + '</div>';
-                            }
+                // 교시별 행 생성
+                for (let i = 0; i < maxPeriods; i++) {
+                    html += '<tr><td>' + (i + 1) + '</td>';
+                    days.forEach((day, dayIndex) => {
+                        if (i < (student.periodCounts[dayIndex] || 0)) {
+                            const cellContent = student.schedule[day][i] || '';
+                            html += '<td>' + cellContent + '</td>';
+                        } else {
+                            html += '<td style="background-color: #f8f9fa;"></td>';
                         }
-                    }
-                });
+                    });
+                    html += '</tr>';
+                }
                 
-                html += '</div>';
+                html += '</tbody></table></div></div>';
             });
-            
-            html += '</div>';
             scheduleContainer.innerHTML = html;
         }
 
