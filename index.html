@@ -812,13 +812,12 @@
                     if (!row[1] || !row[2] || !row[4]) return;
                     const grade = row[1];
                     const classNum = row[2];
-                    const student = {
-                        name: row[4],
-                        number: row[3],
-                        homeroom: `${grade}-${classNum}`,
-                        schedule: {},
-                        maxPeriods: periodStructure.maxPeriods,
-                        periodCounts: periodStructure.periodCounts
+                    const student = { 
+                        name: row[4], 
+                        homeroom: `${grade}-${classNum}`, 
+                        schedule: {}, 
+                        maxPeriods: periodStructure.maxPeriods, 
+                        periodCounts: periodStructure.periodCounts 
                     };
                     
                     daysInOrder.forEach(d => { 
