@@ -459,7 +459,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
         
         // 데이터 전처리
         allStudents.forEach((student, index) => {
-            student.uniqueId = student.name + '||' + student.homeroom;
+            student.uniqueId = student.name + '||' + student.homeroom + '||' + (student.number || '');
         });
 
         // 각종 데이터 추출
@@ -624,7 +624,13 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
             
             autocompleteDropdown.innerHTML = filteredData.map(item => {
                 const icon = icons[item.type || 'student'];
-                const displayName = item.type === 'student' ? item.name + ' (' + item.homeroom + ')' : item.name;
+                let displayName;
+                if(item.type === 'student') {
+                    const numPart = item.number ? ', ' + item.number + '번' : '';
+                    displayName = `${item.name} (${item.homeroom}${numPart})`;
+                } else {
+                    displayName = item.name;
+                }
                 return '<div class="autocomplete-item" onclick="selectItem(\\'' + item.uniqueId + '\\')">' + icon + ' ' + displayName + '</div>';
             }).join('');
             showDropdown();
@@ -668,7 +674,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
             
             let tableHTML = '<div class="schedule-header">' +
                     '<div class="schedule-info">' +
-                        '<h2>' + student.name + ' <small>(' + student.homeroom + ')</small></h2>' +
+                        '<h2>' + student.name + ' <small>(' + student.homeroom + (student.number ? ', ' + student.number + '번' : '') + ')</small></h2>' +
                     '</div>' +
                     '<div class="schedule-actions">' +
                         '<button class="action-btn ' + (isFavorite ? 'favorited' : '') + '" onclick="toggleFavorite(\\'' + uniqueId + '\\');">' +
@@ -1030,7 +1036,8 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
             container.innerHTML = favorites.map(uniqueId => {
                 const student = allStudents.find(s => s.uniqueId === uniqueId);
                 if (!student) return '';
-                return '<button class="favorite-chip" onclick="selectItem(\\'' + uniqueId + '\\')">' + student.name + ' (' + student.homeroom + ')</button>';
+                const numPart = student.number ? ', ' + student.number + '번' : '';
+                return '<button class="favorite-chip" onclick="selectItem(\\'' + uniqueId + '\\')">' + student.name + ' (' + student.homeroom + numPart + ')</button>';
             }).join('');
         }
         
