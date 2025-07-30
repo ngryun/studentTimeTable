@@ -753,63 +753,12 @@
             electiveRows.forEach(row => {
                 if (!row[0] || !row[1] || !row[2]) return;
                 const key = `${row[0]}_${row[2]}_${row[1]}`;
-                electiveInfoMap[key] = {
-                    grade: row[0],
-                    group: row[1],
-                    subject: row[6] || row[2],
-                    location: row[3],
-                    teacher: row[4],
-                    times: row[5]
+                electiveInfoMap[key] = { 
+                    subject: row[6] || row[2], 
+                    location: row[3], 
+                    teacher: row[4], 
+                    times: row[5] 
                 };
-            });
-
-            const classroomMap = {};
-            const ensureClassroom = (name) => {
-                if (!name) return;
-                if (!classroomMap[name]) {
-                    classroomMap[name] = { name, schedule: {}, maxPeriods: periodStructure.maxPeriods, periodCounts: periodStructure.periodCounts };
-                    daysInOrder.forEach(d => {
-                        classroomMap[name].schedule[d] = Array(periodStructure.maxPeriods).fill('');
-                    });
-                }
-            };
-
-            Object.keys(fixedSchedules).forEach(homeroom => {
-                daysInOrder.forEach(day => {
-                    fixedSchedules[homeroom].schedule[day].forEach((info, idx) => {
-                        if (info && info.location) {
-                            ensureClassroom(info.location);
-                            const details = [];
-                            if (info.teacher) details.push(`<span class="teacher-name">${info.teacher}</span>`);
-                            details.push(`<span class="class-info">${homeroom}</span>`);
-                            classroomMap[info.location].schedule[day][idx] = `
-                                <div class="subject-name">${info.subject}</div>
-                                ${details.length > 0 ? `<div class="details">${details.join('<br>')}</div>` : ''}
-                            `;
-                        }
-                    });
-                });
-            });
-
-            Object.values(electiveInfoMap).forEach(info => {
-                if (!info.location || !info.times) return;
-                const timeParts = info.times.split(',').filter(t => t.trim());
-                timeParts.forEach(part => {
-                    const dayMatch = part.match(/^[월화수목금]/);
-                    const periodMatch = part.match(/\d+$/);
-                    if (dayMatch && periodMatch) {
-                        const day = dayMatch[0];
-                        const periodIndex = parseInt(periodMatch[0], 10) - 1;
-                        ensureClassroom(info.location);
-                        const details = [];
-                        if (info.teacher) details.push(`<span class="teacher-name">${info.teacher}</span>`);
-                        if (info.grade && info.group) details.push(`<span class="class-info">${info.grade}-${info.group}</span>`);
-                        classroomMap[info.location].schedule[day][periodIndex] = `
-                            <div class="subject-name">${info.subject}</div>
-                            ${details.length > 0 ? `<div class="details">${details.join('<br>')}</div>` : ''}
-                        `;
-                    }
-                });
             });
 
             // 학생별 시간표 생성
@@ -896,8 +845,7 @@
                     students.push(student);
                 });
             });
-            const classrooms = Object.values(classroomMap);
-            return { students, classrooms };
+            return students;
         }
 
         function generateAndDownloadHtml() {
@@ -906,13 +854,13 @@
                 return;
             }
             try {
-                const result = processAllData();
-                if (result.students.length === 0 && result.classrooms.length === 0) {
-                    alert("처리할 데이터가 없습니다. 엑셀 파일 내용을 확인해주세요.");
+                const studentsData = processAllData();
+                if (studentsData.length === 0) {
+                    alert("처리할 학생 데이터가 없습니다. 엑셀 파일 내용을 확인해주세요.");
                     return;
                 }
                 const pageTitle = document.getElementById('timetable-title').value.trim() || '학생별 시간 조회';
-                const dataString = JSON.stringify(result);
+                const dataString = JSON.stringify(studentsData);
                 
                 // 🔥 외부 템플릿 사용
                 const finalHtml = window.StudentTimetableTemplate.getHtmlTemplate(dataString, pageTitle, timetableData.iconBase64, timetableData.selectedTheme);
