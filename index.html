@@ -810,10 +810,12 @@
                 const selectionRows = file.data.slice(1);
                 selectionRows.forEach(row => {
                     if (!row[1] || !row[2] || !row[4]) return;
+                    
                     const grade = row[1];
                     const classNum = row[2];
                     const student = { 
                         name: row[4], 
+                        studentId: row[3] || '', // 학번 필드 추가 (3번째 열)
                         homeroom: `${grade}-${classNum}`, 
                         schedule: {}, 
                         maxPeriods: periodStructure.maxPeriods, 

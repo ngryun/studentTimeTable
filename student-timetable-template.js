@@ -475,12 +475,12 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
         const searchInput = document.getElementById('search-input');
         const autocompleteDropdown = document.getElementById('autocomplete-dropdown');
         const scheduleContainer = document.getElementById('schedule-container');
+        
 
         function init() {
-            console.log('🚀 Initializing with features:', enabledFeatures);
             setupTabs();
             setupEventListeners();
-            updateSearchPlaceholder(); // 현재 모드에 맞는 플레이스홀더 설정
+            updateSearchPlaceholder();
             updateFavoriteChips();
             showEmptyState();
         }
@@ -624,7 +624,15 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
             
             autocompleteDropdown.innerHTML = filteredData.map(item => {
                 const icon = icons[item.type || 'student'];
-                const displayName = item.type === 'student' ? item.name + ' (' + item.homeroom + ')' : item.name;
+                let displayName;
+                if (item.type === 'student' || (!item.type && item.name && item.homeroom)) {
+                    // 학번이 있으면 "이름 (학번) - 반", 없으면 "이름 (반)"
+                    displayName = item.studentId ? 
+                        item.name + ' (' + item.studentId + ') - ' + item.homeroom :
+                        item.name + ' (' + item.homeroom + ')';
+                } else {
+                    displayName = item.name;
+                }
                 return '<div class="autocomplete-item" onclick="selectItem(\\'' + item.uniqueId + '\\')">' + icon + ' ' + displayName + '</div>';
             }).join('');
             showDropdown();
@@ -1030,7 +1038,10 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
             container.innerHTML = favorites.map(uniqueId => {
                 const student = allStudents.find(s => s.uniqueId === uniqueId);
                 if (!student) return '';
-                return '<button class="favorite-chip" onclick="selectItem(\\'' + uniqueId + '\\')">' + student.name + ' (' + student.homeroom + ')</button>';
+                const displayText = student.studentId ? 
+                    student.name + ' (' + student.studentId + ')' :
+                    student.name + ' (' + student.homeroom + ')';
+                return '<button class="favorite-chip" onclick="selectItem(\\'' + uniqueId + '\\')">' + displayText + '</button>';
             }).join('');
         }
         
