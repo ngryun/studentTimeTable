@@ -1152,14 +1152,32 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                     const usageInfo = scheduleData[periodKey] || [];
                     
                     if (usageInfo.length > 0) {
-                        const content = usageInfo.map((info, infoIndex) => {
+                        // 선택수업과 고정수업이 겹치는 경우 선택수업만 표시
+                        let filteredInfo = usageInfo;
+                        const hasElectives = usageInfo.some(info => info.students && info.students.length > 0);
+                        const hasFixed = usageInfo.some(info => info.homeroom && (!info.students || info.students.length === 0));
+                        
+                        // 선택수업이 있으면 고정수업은 제외
+                        if (hasElectives && hasFixed) {
+                            filteredInfo = usageInfo.filter(info => info.students && info.students.length > 0);
+                        }
+                        
+                        const content = filteredInfo.map((info, infoIndex) => {
                             const studentListId = 'students-' + classroomId + '-' + periodKey + '-' + infoIndex;
-                            return '<div class="subject-name">' + info.subject + '</div>' +
-                                   '<div class="details">' +
-                                       '<span class="teacher-name">' + info.teacher + '</span><br>' +
-                                       '<button class="favorite-chip" style="font-size: 11px; padding: 4px 8px; margin-top: 4px;" onclick="toggleStudentList(\\'' + studentListId + '\\')">학생목록</button>' +
-                                       '<div id="' + studentListId + '" style="display: none; margin-top: 4px; font-size: 11px; color: #666;">' + info.students.join(', ') + '</div>' +
-                                   '</div>';
+                            const hasStudents = info.students && info.students.length > 0;
+                            
+                            let detailsHtml = '<div class="details">' +
+                                            '<span class="teacher-name">' + info.teacher + '</span>';
+                            
+                            // 학생이 있는 경우에만 학생목록 버튼 표시
+                            if (hasStudents) {
+                                detailsHtml += '<br><button class="favorite-chip" style="font-size: 11px; padding: 4px 8px; margin-top: 4px;" onclick="toggleStudentList(\\'' + studentListId + '\\')">학생목록</button>' +
+                                             '<div id="' + studentListId + '" style="display: none; margin-top: 4px; font-size: 11px; color: #666;">' + info.students.join(', ') + '</div>';
+                            }
+                            
+                            detailsHtml += '</div>';
+                            
+                            return '<div class="subject-name">' + info.subject + '</div>' + detailsHtml;
                         }).join('<hr style="margin: 8px 0; border: 1px solid #eee;">');
                         html += '<td>' + content + '</td>';
                     } else {
