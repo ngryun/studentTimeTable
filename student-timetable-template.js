@@ -882,22 +882,31 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                         '<div class="favorite-chips">' + classroomButtons + '</div>' +
                     '</div>';
             } else if (currentMode === 'teacher') {
-                // 선생님별 탭: 선생님 목록
-                const teacherList = Object.keys(teacherData).sort();
-                const teacherButtons = teacherList.map(teacher => 
-                    '<button class="favorite-chip" onclick="selectItem(\\'' + teacher + '\\');">' + teacher + ' 선생님</button>'
-                ).join('');
+                // 선생님별 탭: 검색창 + 즐겨찾기 (학생별 탭과 동일한 구조)
                 searchSection.innerHTML = '' +
+                    '<div class="search-container">' +
+                        '<div class="search-icon">' +
+                            '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+                                '<circle cx="11" cy="11" r="8"></circle>' +
+                                '<line x1="21" y1="21" x2="16.65" y2="16.65"></line>' +
+                            '</svg>' +
+                        '</div>' +
+                        '<input type="text" id="search-input" placeholder="선생님 이름을 입력하세요...">' +
+                        '<div class="autocomplete-dropdown" id="autocomplete-dropdown"></div>' +
+                    '</div>' +
                     '<div class="favorites-section">' +
-                        '<div class="favorites-title">선생님 선택</div>' +
-                        '<div class="favorite-chips">' + teacherButtons + '</div>' +
+                        '<div class="favorites-title">자주 찾는 선생님</div>' +
+                        '<div class="favorite-chips" id="favorite-chips"></div>' +
                     '</div>';
             }
             
-            // 학생별 탭에서만 이벤트 리스너 재설정
+            // 검색창이 있는 탭에서 이벤트 리스너 재설정
             if (currentMode === 'student') {
                 setupEventListeners();
                 updateFavoriteChips();
+            } else if (currentMode === 'teacher') {
+                setupTeacherEventListeners();
+                updateTeacherFavoriteChips();
             }
         }
 
@@ -1210,11 +1219,19 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
             const days = ['월', '화', '수', '목', '금'];
             const maxPeriods = 7; // 기본값
             
+            const isFavorite = teacherFavorites.includes(teacherId);
+            
             let html = '<div class="schedule-header">' +
                     '<div class="schedule-info">' +
                         '<h2>' + teacherId + ' 선생님 시간표</h2>' +
                     '</div>' +
                     '<div class="schedule-actions">' +
+                        '<button class="action-btn ' + (isFavorite ? 'favorited' : '') + '" onclick="toggleTeacherFavorite(\\'' + teacherId + '\\');">' +
+                            '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="' + (isFavorite ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="2">' +
+                                '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>' +
+                            '</svg> ' +
+                            (isFavorite ? '즐겨찾기됨' : '즐겨찾기') +
+                        '</button>' +
                         '<button class="action-btn" onclick="window.print()">' +
                             '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
                                 '<polyline points="6 9 6 2 18 2 18 9"></polyline>' +
@@ -2511,6 +2528,140 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
         }
 
         // 초기화 실행
+        // 선생님별 탭용 이벤트 리스너 설정
+        function setupTeacherEventListeners() {
+            const searchInput = document.getElementById('search-input');
+            const autocompleteDropdown = document.getElementById('autocomplete-dropdown');
+            let selectedIndex = -1;
+            let filteredTeachers = [];
+            
+            if (!searchInput || !autocompleteDropdown) return;
+            
+            function hideDropdown() {
+                autocompleteDropdown.style.display = 'none';
+                selectedIndex = -1;
+            }
+            
+            function updateAutocomplete() {
+                if (filteredTeachers.length === 0) { 
+                    hideDropdown(); 
+                    return; 
+                }
+                
+                autocompleteDropdown.innerHTML = filteredTeachers.map((teacher, index) => 
+                    '<div class="autocomplete-item' + (index === selectedIndex ? ' selected' : '') + '" onclick="selectTeacher(\\'' + teacher + '\\');">' + 
+                    '👨‍🏫 ' + teacher + ' 선생님' +
+                    '</div>'
+                ).join('');
+                autocompleteDropdown.style.display = 'block';
+            }
+            
+            searchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                selectedIndex = -1;
+                
+                if (query.length === 0) {
+                    filteredTeachers = [];
+                    hideDropdown();
+                    return;
+                }
+                
+                // 선생님 목록에서 검색
+                const teacherList = Object.keys(teacherData);
+                filteredTeachers = teacherList.filter(teacher => 
+                    teacher.toLowerCase().includes(query)
+                ).slice(0, 10); // 최대 10개만 표시
+                
+                updateAutocomplete();
+            });
+            
+            searchInput.addEventListener('keydown', function(e) {
+                const items = autocompleteDropdown.querySelectorAll('.autocomplete-item');
+                if (!items.length) return;
+                
+                switch(e.key) {
+                    case 'ArrowDown': 
+                        e.preventDefault(); 
+                        selectedIndex = (selectedIndex + 1) % items.length; 
+                        break;
+                    case 'ArrowUp': 
+                        e.preventDefault(); 
+                        selectedIndex = (selectedIndex - 1 + items.length) % items.length; 
+                        break;
+                    case 'Enter': 
+                        e.preventDefault(); 
+                        if (selectedIndex >= 0 && items[selectedIndex]) { 
+                            items[selectedIndex].click(); 
+                        } else if (filteredTeachers.length > 0) { 
+                            selectTeacher(filteredTeachers[0]); 
+                        } 
+                        return;
+                    case 'Escape': 
+                        hideDropdown(); 
+                        return;
+                }
+                items.forEach((item, index) => item.classList.toggle('selected', index === selectedIndex));
+            });
+            
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.search-container')) hideDropdown();
+            });
+        }
+        
+        function selectTeacher(teacherName) {
+            clearTeacherSearch();
+            displayTeacherSchedule(teacherName);
+        }
+        
+        function clearTeacherSearch() {
+            const searchInput = document.getElementById('search-input');
+            const autocompleteDropdown = document.getElementById('autocomplete-dropdown');
+            if (searchInput) searchInput.value = '';
+            if (autocompleteDropdown) autocompleteDropdown.style.display = 'none';
+        }
+        
+        // 선생님 즐겨찾기 관리
+        let teacherFavorites = JSON.parse(localStorage.getItem('favTeachers') || '[]');
+        
+        function toggleTeacherFavorite(teacherName) {
+            const index = teacherFavorites.indexOf(teacherName);
+            if (index > -1) {
+                // 이미 즐겨찾기에 있으면 제거
+                teacherFavorites.splice(index, 1);
+            } else {
+                // 즐겨찾기에 없으면 추가 (맨 앞에)
+                teacherFavorites.unshift(teacherName);
+                if (teacherFavorites.length > 10) {
+                    teacherFavorites = teacherFavorites.slice(0, 10);
+                }
+            }
+            localStorage.setItem('favTeachers', JSON.stringify(teacherFavorites));
+            updateTeacherFavoriteChips();
+            // 현재 표시된 선생님이면 화면 새로고침
+            displayTeacherSchedule(teacherName);
+        }
+        
+        function addToTeacherFavorites(teacherName) {
+            if (!teacherFavorites.includes(teacherName)) {
+                teacherFavorites.unshift(teacherName);
+                if (teacherFavorites.length > 10) {
+                    teacherFavorites = teacherFavorites.slice(0, 10);
+                }
+                localStorage.setItem('favTeachers', JSON.stringify(teacherFavorites));
+            }
+        }
+        
+        function updateTeacherFavoriteChips() {
+            const favoriteChipsContainer = document.getElementById('favorite-chips');
+            if (!favoriteChipsContainer) return;
+            
+            favoriteChipsContainer.innerHTML = teacherFavorites.map(teacher => 
+                '<button class="favorite-chip" onclick="selectTeacher(\\'' + teacher + '\\');">' + 
+                teacher + ' 선생님' +
+                '</button>'
+            ).join('');
+        }
+
         init();
     `;
 }
