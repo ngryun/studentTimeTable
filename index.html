@@ -823,6 +823,7 @@
                         name: row[4], 
                         studentId: row[3] || '', // 학번 필드 추가 (3번째 열)
                         homeroom: `${grade}-${classNum}`, 
+                        number: row[3] || '',
                         schedule: {}, 
                         maxPeriods: periodStructure.maxPeriods, 
                         periodCounts: periodStructure.periodCounts 
