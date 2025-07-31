@@ -639,6 +639,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
             autocompleteDropdown.innerHTML = filteredData.map(item => {
                 const icon = icons[item.type || 'student'];
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
                 let displayName;
                 if (item.type === 'student' || (!item.type && item.name && item.homeroom)) {
                     // 학번이 있으면 "이름 (학번) - 반", 없으면 "이름 (반)"
@@ -650,6 +651,8 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
                 }
                 return '<div class="autocomplete-item" onclick="selectItem(\\'' + item.uniqueId + '\\')">' + icon + ' ' + displayName + '</div>';
 =======
+=======
+>>>>>>> Stashed changes
                 let displayName = '';
                 
                 if (item.type === 'student' || !item.type) {
@@ -680,6 +683,9 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
                 }
                 
                 return '<div class="autocomplete-item" onclick="selectItem(\\'' + (item.uniqueId || '') + '\\')">' + icon + ' ' + displayName + '</div>';
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
             }).join('');
             showDropdown();
@@ -797,6 +803,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
             // 각 학생별로 개별 테이블 생성
             students.forEach(student => {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
                 html += '<div style="margin-bottom: 30px;">' +
                         '<h3 style="margin: 20px 0 15px 0; color: var(--primary-color);">' + 
                         student.name;
@@ -811,12 +818,17 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
                                 '</thead>' +
                                 '<tbody>';
 =======
+=======
+>>>>>>> Stashed changes
                 const studentNumber = student.number ? String(student.number) : '';
                 const paddedNumber = studentNumber && studentNumber.length <= 5 ? studentNumber.padStart(5, '0') : studentNumber;
                 const numberDisplay = paddedNumber ? ' [' + paddedNumber + ']' : '';
                 
                 html += '<div class="student-card">' +
                         '<h4>' + student.name + numberDisplay + '</h4>';
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
                 
                 // 교시별 행 생성
@@ -1110,10 +1122,13 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
                 const student = allStudents.find(s => s.uniqueId === uniqueId);
                 if (!student) return '';
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
                 const displayText = student.studentId ? 
                     student.name + ' (' + student.studentId + ')' :
                     student.name + ' (' + student.homeroom + ')';
 =======
+=======
+>>>>>>> Stashed changes
                 
                 const homeroom = student.homeroom || '';
                 const number = student.number || '';
@@ -1130,6 +1145,9 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
                     displayText += ' [' + paddedNumber + ']';
                 }
                 
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
                 return '<button class="favorite-chip" onclick="selectItem(\\'' + uniqueId + '\\')">' + displayText + '</button>';
             }).join('');
