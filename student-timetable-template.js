@@ -1281,7 +1281,18 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                             
                             detailsHtml += '</div>';
                             
-                            return '<div class="subject-name">' + info.subject + '</div>' + detailsHtml;
+                            // 선택과목의 경우 반명을 원형으로 표시
+                            let subjectDisplayHtml = '';
+                            if (info.electiveClassName && hasStudents) {
+                                subjectDisplayHtml = '<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">' +
+                                    '<span class="elective-class-badge" style="display: inline-block; width: 24px; height: 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 50%; text-align: center; line-height: 24px; font-size: 11px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">' + info.electiveClassName + '</span>' +
+                                    '<div class="subject-name">' + info.subject + '</div>' +
+                                '</div>';
+                            } else {
+                                subjectDisplayHtml = '<div class="subject-name">' + info.subject + '</div>';
+                            }
+                            
+                            return subjectDisplayHtml + detailsHtml;
                         }).join('<hr style="margin: 8px 0; border: 1px solid #eee;">');
                         html += '<td>' + content + '</td>';
                     } else {
@@ -1630,6 +1641,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                             let classroom = '';
                             let subject = '';
                             let teacher = '';
+                            let electiveClassName = '';
                             
                             // 교실 정보 추출
                             const locationStart = content.indexOf('<span class="location-chip">');
@@ -1643,6 +1655,16 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                             const subjectEnd = content.indexOf('</div>', subjectStart);
                             if (subjectStart !== -1 && subjectEnd !== -1) {
                                 subject = content.substring(subjectStart + 26, subjectEnd);
+                            }
+                            
+                            // 선택과목 반명 정보 추출
+                            const electiveClassNameStart = content.indexOf('<span class="elective-class-name"');
+                            if (electiveClassNameStart !== -1) {
+                                const electiveClassNameContentStart = content.indexOf('>', electiveClassNameStart) + 1;
+                                const electiveClassNameEnd = content.indexOf('</span>', electiveClassNameContentStart);
+                                if (electiveClassNameContentStart > 0 && electiveClassNameEnd !== -1) {
+                                    electiveClassName = content.substring(electiveClassNameContentStart, electiveClassNameEnd);
+                                }
                             }
                             
                             // 교사 정보 추출
@@ -1776,6 +1798,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                             let classroom = '';
                             let subject = '';
                             let teacher = '';
+                            let electiveClassName = '';
                             
                             // 교실 정보 추출
                             const locationStart = content.indexOf('<span class="location-chip">');
@@ -1789,6 +1812,16 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                             const subjectEnd = content.indexOf('</div>', subjectStart);
                             if (subjectStart !== -1 && subjectEnd !== -1) {
                                 subject = content.substring(subjectStart + 26, subjectEnd);
+                            }
+                            
+                            // 선택과목 반명 정보 추출
+                            const electiveClassNameStart = content.indexOf('<span class="elective-class-name"');
+                            if (electiveClassNameStart !== -1) {
+                                const electiveClassNameContentStart = content.indexOf('>', electiveClassNameStart) + 1;
+                                const electiveClassNameEnd = content.indexOf('</span>', electiveClassNameContentStart);
+                                if (electiveClassNameContentStart > 0 && electiveClassNameEnd !== -1) {
+                                    electiveClassName = content.substring(electiveClassNameContentStart, electiveClassNameEnd);
+                                }
                             }
                             
                             // 교사 정보 추출
@@ -1809,9 +1842,9 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                                     teacherData[normalizedTeacher][periodKey] = [];
                                 }
                                 
-                                // 같은 과목과 교실의 수업 찾기
+                                // 같은 과목과 교실의 수업 찾기 (반명도 비교)
                                 let existingClass = teacherData[normalizedTeacher][periodKey].find(
-                                    item => item.subject === subject && item.classroom === classroom
+                                    item => item.subject === subject && item.classroom === classroom && item.electiveClassName === electiveClassName
                                 );
                                 
                                 if (existingClass) {
@@ -1824,9 +1857,10 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                                     teacherData[normalizedTeacher][periodKey].push({
                                         subject: subject,
                                         classroom: classroom,
+                                        electiveClassName: electiveClassName,
                                         students: [student.name]
                                     });
-                                    console.log('[TEACHER_ELECTIVE] Added elective class:', subject, 'for teacher', normalizedTeacher, 'in', classroom);
+                                    console.log('[TEACHER_ELECTIVE] Added elective class:', subject, 'for teacher', normalizedTeacher, 'in', classroom, 'class:', electiveClassName);
                                 }
                             }
                         }
