@@ -411,73 +411,46 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             .usage-stats { grid-template-columns: repeat(2, 1fr); }
         }
 
-        /* 인쇄 스타일 */
+        /* 인쇄 스타일 - 최소한으로 줄여서 웹 스타일을 그대로 유지 */
         @media print {
-            body { background: white; padding: 0; margin: 0; }
-            #app-container { box-shadow: none; padding: 15px; margin: 0; max-width: 100%; }
-            #search-section, .schedule-actions, .title-icon, .tab-navigation { display: none; }
-            h1 { font-size: 14pt; }
-            .schedule-info h2 { font-size: 12pt; }
-            table { font-size: 9pt; }
-            thead th { background: var(--header-bg) !important; color: var(--header-text) !important; -webkit-print-color-adjust: exact; }
-            td { height: auto; padding: 6px 4px;}
-            .location-chip, .teacher-name { font-size: 8pt; padding: 2px 5px; -webkit-print-color-adjust: exact; }
+            /* 인쇄에 불필요한 요소만 숨기기 */
+            #search-section, .schedule-actions, .title-icon, .tab-navigation { display: none !important; }
             
-            /* 반별 탭 인쇄 시 - A4 용지 크기 고정 방식 */
+            /* 페이지 레이아웃만 조정 */
+            body { 
+                background: white !important; 
+                padding: 0 !important; 
+                margin: 0 !important; 
+                -webkit-print-color-adjust: exact !important;
+            }
+            #app-container { 
+                box-shadow: none !important; 
+                padding: 15px !important; 
+                margin: 0 !important; 
+                max-width: 100% !important; 
+                background-color: white !important;
+            }
+            
+            /* 제목 크기만 인쇄용으로 조정 */
+            h1 { font-size: 16pt !important; }
+            .schedule-info h2 { font-size: 14pt !important; }
+            
+            /* 모든 색상이 인쇄되도록 보장 */
+            * { 
+                -webkit-print-color-adjust: exact !important; 
+                color-adjust: exact !important;
+            }
+            
+            /* 반별 탭 인쇄 시 - 페이지 나누기만 적용 */
             .student-print-page {
-                /* A4 용지 크기: 210mm x 297mm */
-                width: 210mm !important;
-                height: 297mm !important;
-                padding: 15mm !important;
-                margin: 0 !important;
-                box-sizing: border-box !important;
-                
-                /* 페이지 나누기 */
                 page-break-before: always !important;
-                page-break-after: always !important;
+                page-break-after: auto !important;
                 page-break-inside: avoid !important;
-                
-                /* 레이아웃 */
-                display: block !important;
-                position: relative !important;
-                background: white !important;
+                margin-bottom: 20px !important;
             }
             
             .student-print-page:first-child {
                 page-break-before: auto !important;
-            }
-            
-            .student-print-page:last-child {
-                page-break-after: auto !important;
-            }
-            
-            .student-print-page h3 {
-                font-size: 16pt !important;
-                font-weight: bold !important;
-                text-align: center !important;
-                margin: 0 0 20mm 0 !important;
-                padding: 5mm 0 !important;
-                border-bottom: 2pt solid #000 !important;
-            }
-            
-            .student-print-page table {
-                width: 100% !important;
-                border-collapse: collapse !important;
-                font-size: 10pt !important;
-                margin: 0 !important;
-            }
-            
-            .student-print-page th,
-            .student-print-page td {
-                border: 1pt solid #000 !important;
-                padding: 3mm !important;
-                text-align: center !important;
-                vertical-align: middle !important;
-            }
-            
-            .student-print-page th {
-                background-color: #f0f0f0 !important;
-                font-weight: bold !important;
             }
         }
     `;
@@ -1047,7 +1020,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
                             return '<div class="subject-name">' + info.subject + '</div>' +
                                    '<div class="details">' +
                                        '<span class="teacher-name">' + info.teacher + '</span><br>' +
-                                       '<button class="favorite-chip" style="font-size: 11px; padding: 4px 8px; margin-top: 4px;" onclick="toggleStudentList(\\'' + studentListId + '\\')">{학생목록}</button>' +
+                                       '<button class="favorite-chip" style="font-size: 11px; padding: 4px 8px; margin-top: 4px;" onclick="toggleStudentList(\\'' + studentListId + '\\')">학생목록</button>' +
                                        '<div id="' + studentListId + '" style="display: none; margin-top: 4px; font-size: 11px; color: #666;">' + info.students.join(', ') + '</div>' +
                                    '</div>';
                         }).join('<hr style="margin: 8px 0; border: 1px solid #eee;">');
