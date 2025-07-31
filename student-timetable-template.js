@@ -562,8 +562,8 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
     `;
 }
 
-// JavaScript 코드 생성 함수 - 정규식 오류 완전 수정 버전
-function generateTimetableJS(dataJsonString, enabledFeatures) {
+// JavaScript 코드 생성 함수 - 주간시간표 데이터 포함
+function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData) {
     // 디버깅: enabledFeatures 검증 및 기본값 설정
     if (!enabledFeatures || typeof enabledFeatures !== 'object') {
         console.warn('⚠️ enabledFeatures가 올바르지 않습니다. 기본값을 사용합니다.');
@@ -587,6 +587,8 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
         const allStudents = ${dataJsonString};
         console.log('학생 데이터 (첫 5개):', allStudents.slice(0, 5));
         const enabledFeatures = ${JSON.stringify(safeEnabledFeatures)};
+        const weeklyScheduleData = ${weeklyData ? JSON.stringify(weeklyData) : 'null'};
+        console.log('주간시간표 데이터:', weeklyScheduleData ? '로드됨' : '없음');
         
         // 정규식 패턴들을 미리 정의 (템플릿 리터럴 오류 방지)
         const regexPatterns = {
@@ -615,7 +617,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
         // 각종 데이터 추출
         const classData = extractClassData(allStudents);
         const classroomData = extractClassroomData(allStudents);
-        const teacherData = extractTeacherData(allStudents);
+        const teacherData = weeklyScheduleData ? extractTeacherDataFromWeekly(weeklyScheduleData) : extractTeacherData(allStudents);
 
         let favorites = JSON.parse(localStorage.getItem('favStudents') || '[]');
         let filteredData = []; 
@@ -1206,6 +1208,186 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
             scheduleContainer.innerHTML = html;
         }
 
+        // 주간시간표에서 교실별 데이터 추출
+        function extractClassroomDataFromWeekly(weeklyData) {
+            console.log('[WEEKLY] Extracting classroom data from weekly schedule');
+            const classroomData = {};
+            
+            if (!weeklyData || !Array.isArray(weeklyData)) {
+                console.log('[WEEKLY] No valid weekly data');
+                return classroomData;
+            }
+            
+            // 주간시간표 파싱 로직은 파일 형식에 따라 다름
+            // 여기서는 기본적인 구조를 가정
+            weeklyData.forEach((row, rowIndex) => {
+                if (!row || !Array.isArray(row)) return;
+                
+                // 각 행을 분석하여 교실, 시간, 과목, 선생님 정보 추출
+                // 실제 구현은 주간시간표 파일의 구체적인 형식에 따라 달라질 수 있음
+                console.log('[WEEKLY] Processing row:', rowIndex, row.slice(0, 10));
+            });
+            
+            return classroomData;
+        }
+        
+        // 주간시간표에서 선생님별 데이터 추출  
+        function extractTeacherDataFromWeekly(weeklyData) {
+            console.log('[WEEKLY] Extracting teacher data from weekly schedule');
+            const teacherSchedules = {};
+            
+            if (!weeklyData || !Array.isArray(weeklyData)) {
+                console.log('[WEEKLY] No valid weekly data');
+                return teacherSchedules;
+            }
+            
+            // 주간시간표 파싱 - forTeacherTimetable.html과 동일한 로직
+            const teachers = parseWeeklyTimetable(weeklyData);
+            
+            // 선생님별 시간표를 교실별 탭에서 사용할 수 있는 형식으로 변환
+            teachers.forEach(teacher => {
+                const days = ['월', '화', '수', '목', '금'];
+                days.forEach(day => {
+                    if (teacher.schedule && teacher.schedule[day]) {
+                        teacher.schedule[day].forEach((subject, periodIndex) => {
+                            if (subject && subject.trim() !== '') {
+                                const periodKey = day + (periodIndex + 1);
+                                
+                                if (!teacherSchedules[teacher.name]) {
+                                    teacherSchedules[teacher.name] = {};
+                                }
+                                if (!teacherSchedules[teacher.name][periodKey]) {
+                                    teacherSchedules[teacher.name][periodKey] = [];
+                                }
+                                
+                                // 교실과 과목 분리
+                                let classroom = '';
+                                let subjectName = subject;
+                                const match = subject.match(/^(\S+)\s+(.+)$/);
+                                if (match) {
+                                    classroom = match[1];
+                                    subjectName = match[2];
+                                }
+                                
+                                teacherSchedules[teacher.name][periodKey].push({
+                                    subject: subjectName,
+                                    classroom: classroom,
+                                    students: [] // 주간시간표에는 학생 정보가 없음
+                                });
+                            }
+                        });
+                    }
+                });
+            });
+            
+            return teacherSchedules;
+        }
+        
+        // 주간시간표 파싱 함수 (forTeacherTimetable.html에서 가져옴)
+        function parseWeeklyTimetable(data) {
+            // 양식 유형 자동 감지
+            const formatType = detectTimetableFormat(data);
+            
+            if (formatType === 'formatB') {
+                return parseTimetableFormatB(data);
+            } else {
+                return parseTimetableFormatA(data);
+            }
+        }
+        
+        function detectTimetableFormat(data) {
+            if (data.length >= 4) {
+                const row3 = data[2] || [];
+                const row4 = data[3] || [];
+                
+                if (row3.includes('번호') && row3.includes('교사') && 
+                    (row3.includes('월') || row3.includes('화'))) {
+                    return 'formatB';
+                }
+            }
+            return 'formatA';
+        }
+        
+        function parseTimetableFormatA(data) {
+            const teachers = [];
+            
+            let periodStructure = null;
+            if (data.length > 0 && data[0].length > 1) {
+                const totalCells = data[0].length - 1;
+                periodStructure = calculatePeriodStructure(totalCells);
+            }
+            
+            if (!periodStructure) {
+                periodStructure = {
+                    periodCounts: [7, 7, 7, 6, 6],
+                    maxPeriods: 7
+                };
+            }
+            
+            data.forEach(row => {
+                if (!row[0]) return;
+                
+                const teacherName = row[0].replace(/\(\d+\)/, '').trim();
+                const scheduleData = row.slice(1);
+                
+                const schedule = {};
+                let currentIndex = 0;
+                const daysInOrder = ['월', '화', '수', '목', '금'];
+                
+                for (let i = 0; i < daysInOrder.length && i < periodStructure.periodCounts.length; i++) {
+                    const day = daysInOrder[i];
+                    const count = periodStructure.periodCounts[i];
+                    schedule[day] = scheduleData.slice(currentIndex, currentIndex + count).map(cell => cell || '');
+                    currentIndex += count;
+                }
+                
+                teachers.push({ 
+                    name: teacherName, 
+                    schedule: schedule,
+                    maxPeriods: periodStructure.maxPeriods,
+                    periodCounts: periodStructure.periodCounts
+                });
+            });
+            return teachers;
+        }
+        
+        function calculatePeriodStructure(totalCells) {
+            const commonPatterns = [
+                [7, 7, 7, 6, 6], // 33교시 - 가장 일반적
+                [6, 6, 6, 6, 6], // 30교시
+                [7, 7, 7, 7, 7], // 35교시  
+                [8, 8, 8, 6, 6], // 36교시
+                [8, 8, 8, 7, 7], // 38교시
+                [8, 8, 8, 8, 8], // 40교시
+                [5, 5, 5, 5, 5], // 25교시 - 초등학교 등
+                [6, 6, 6, 5, 5], // 28교시
+                [7, 7, 7, 5, 5]  // 31교시
+            ];
+            
+            for (const pattern of commonPatterns) {
+                const sum = pattern.reduce((a, b) => a + b, 0);
+                if (sum === totalCells) {
+                    return {
+                        periodCounts: pattern,
+                        maxPeriods: Math.max(...pattern)
+                    };
+                }
+            }
+            
+            if (totalCells % 5 === 0) {
+                const periodsPerDay = totalCells / 5;
+                return {
+                    periodCounts: [periodsPerDay, periodsPerDay, periodsPerDay, periodsPerDay, periodsPerDay],
+                    maxPeriods: periodsPerDay
+                };
+            }
+            
+            return {
+                periodCounts: [7, 7, 7, 6, 6],
+                maxPeriods: 7
+            };
+        }
+
         // 데이터 추출 함수들 - 정규식 문제 해결
         function extractClassData(students) {
             const classData = {};
@@ -1486,15 +1668,16 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
     `;
 }
 
-// 메인 HTML 템플릿 생성 함수 - 수정된 버전
-function getHtmlTemplate(dataJsonString, pageTitle, iconBase64, selectedTheme = 'serenity', enabledFeatures = {student: true, class: true, classroom: true, teacher: true}) {
+// 메인 HTML 템플릿 생성 함수 - 주간시간표 데이터 추가
+function getHtmlTemplate(dataJsonString, pageTitle, iconBase64, selectedTheme = 'serenity', enabledFeatures = {student: true, class: true, classroom: true, teacher: true}, weeklyData = null) {
     // 디버깅: 매개변수 검증
-    console.log('🎯 Template received parameters:', {
+    console.log('Template received parameters:', {
         dataLength: dataJsonString?.length || 0,
         pageTitle,
         hasIcon: !!iconBase64,
         selectedTheme,
-        enabledFeatures
+        enabledFeatures,
+        hasWeeklyData: !!weeklyData
     });
     
     return `<!DOCTYPE html>
@@ -1527,7 +1710,7 @@ function getHtmlTemplate(dataJsonString, pageTitle, iconBase64, selectedTheme = 
     </div>
     
     <script>
-        ${generateTimetableJS(dataJsonString, enabledFeatures)}
+        ${generateTimetableJS(dataJsonString, enabledFeatures, weeklyData)}
     </script>
 </body>
 </html>`;

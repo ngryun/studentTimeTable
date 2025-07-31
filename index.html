@@ -963,7 +963,8 @@
                     pageTitle, 
                     timetableData.iconBase64, 
                     timetableData.selectedTheme,
-                    selectedFeatures
+                    selectedFeatures,
+                    timetableData.weekly
                 );
                 
                 const blob = new Blob([finalHtml], { type: 'text/html;charset=utf-8' });
