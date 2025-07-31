@@ -452,6 +452,112 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             .student-print-page:first-child {
                 page-break-before: auto !important;
             }
+            
+            /* 포켓사이즈 모드 - 2행 2열 4개 시간표 */
+            body.pocket-size .class-schedule-print-container {
+                display: grid !important;
+                grid-template-columns: repeat(2, 1fr) !important;
+                grid-template-rows: repeat(2, auto) !important;
+                grid-gap: 2mm !important;
+                width: 100% !important;
+                max-width: 200mm !important;
+                height: auto !important;
+                max-height: 270mm !important;
+                margin: 0 auto !important;
+                padding: 3mm !important;
+                box-sizing: border-box !important;
+                page-break-inside: avoid !important;
+                page-break-after: always !important;
+            }
+            
+            body.pocket-size .class-schedule-print-container:last-child {
+                page-break-after: auto !important;
+            }
+            
+            body.pocket-size .pocket-page-break {
+                page-break-before: always !important;
+            }
+            
+            body.pocket-size .student-print-page {
+                width: 100% !important;
+                height: auto !important;
+                max-height: 100mm !important;
+                display: block !important;
+                margin: 0 !important;
+                padding: 1mm !important;
+                border: 0.5px solid #666 !important;
+                page-break-inside: avoid !important;
+                page-break-before: auto !important;
+                page-break-after: auto !important;
+                box-sizing: border-box !important;
+                overflow: hidden !important;
+            }
+            
+            body.pocket-size .student-print-page h3 {
+                font-size: 7pt !important;
+                margin: 0 0 1mm 0 !important;
+                padding: 0.5mm 0 !important;
+                text-align: center !important;
+                border-bottom: 0.5px solid #999 !important;
+            }
+            
+            body.pocket-size .student-print-page table {
+                font-size: 5pt !important;
+                width: 100% !important;
+                margin: 0 !important;
+                table-layout: fixed !important;
+            }
+            
+            body.pocket-size .student-print-page th,
+            body.pocket-size .student-print-page td {
+                padding: 0.5mm !important;
+                height: 10mm !important;
+                font-size: 6pt !important;
+                line-height: 1.1 !important;
+                border: 0.3px solid #999 !important;
+                overflow: hidden !important;
+            }
+            
+            body.pocket-size .student-print-page th {
+                height: 7mm !important;
+                font-size: 6pt !important;
+                font-weight: bold !important;
+            }
+            
+            body.pocket-size .subject-name {
+                font-size: 5.5pt !important;
+                margin-bottom: 0.3mm !important;
+                font-weight: bold !important;
+                line-height: 1 !important;
+            }
+            
+            body.pocket-size .details {
+                margin-top: 0.3mm !important;
+                line-height: 1 !important;
+            }
+            
+            body.pocket-size .location-chip,
+            body.pocket-size .teacher-name {
+                font-size: 4.5pt !important;
+                padding: 0px 1px !important;
+                display: inline !important;
+                background: rgba(0,0,0,0.1) !important;
+                border-radius: 1px !important;
+            }
+            
+            body.pocket-size .location-chip::before {
+                content: '' !important;
+            }
+            
+            /* 포켓사이즈 모드에서 헤더 숨기기 */
+            body.pocket-size .schedule-header {
+                display: none !important;
+            }
+            
+            /* 인쇄 시 상단 제목 숨기기 */
+            body.pocket-size h1 {
+                display: none !important;
+            }
         }
     `;
 }
@@ -920,6 +1026,13 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
                         '<h2>' + classId + '반 시간표 <small>(총 ' + students.length + '명)</small></h2>' +
                     '</div>' +
                     '<div class="schedule-actions">' +
+                        '<button class="action-btn" id="pocket-toggle" onclick="togglePocketSize()" style="margin-right: 10px;">' +
+                            '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+                                '<rect x="2" y="6" width="20" height="8" rx="2"></rect>' +
+                                '<path d="M6 12h12"></path>' +
+                            '</svg> ' +
+                            '포켓사이즈' +
+                        '</button>' +
                         '<button class="action-btn" onclick="window.print()">' +
                             '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
                                 '<polyline points="6 9 6 2 18 2 18 9"></polyline>' +
@@ -930,10 +1043,14 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
                         '</button>' +
                     '</div>' +
                 '</div>' +
-                '<div class="class-schedule-print-container">';
+                '<div class="class-schedule-print-container" id="class-container">';
             
             // 각 학생별로 완전한 페이지 생성
             students.forEach((student, index) => {
+                // 포켓사이즈 모드에서는 4개씩 그룹으로 페이지 나누기
+                if (index > 0 && index % 4 === 0) {
+                    html += '</div><div class="class-schedule-print-container pocket-page-break">';
+                }
                 // 학번 생성: 학년+반+번호
                 const homeroom = student.homeroom || '';
                 const number = student.number || '';
@@ -1296,6 +1413,35 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
                 } else {
                     element.style.display = 'none';
                 }
+            }
+        }
+
+        function togglePocketSize() {
+            const body = document.body;
+            const toggleBtn = document.getElementById('pocket-toggle');
+            
+            if (body.classList.contains('pocket-size')) {
+                // 포켓사이즈 해제
+                body.classList.remove('pocket-size');
+                toggleBtn.style.background = '';
+                toggleBtn.style.color = '';
+                toggleBtn.innerHTML = '' +
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+                        '<rect x="2" y="6" width="20" height="8" rx="2"></rect>' +
+                        '<path d="M6 12h12"></path>' +
+                    '</svg> ' +
+                    '포켓사이즈';
+            } else {
+                // 포켓사이즈 활성화
+                body.classList.add('pocket-size');
+                toggleBtn.style.background = 'var(--primary-color)';
+                toggleBtn.style.color = 'white';
+                toggleBtn.innerHTML = '' +
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2">' +
+                        '<rect x="2" y="6" width="20" height="8" rx="2"></rect>' +
+                        '<path d="M6 12h12"></path>' +
+                    '</svg> ' +
+                    '포켓사이즈 ON';
             }
         }
 
