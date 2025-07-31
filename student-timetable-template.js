@@ -1222,35 +1222,61 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
             const classroomData = {};
             const days = ['월', '화', '수', '목', '금'];
             
+            console.log('[DEBUG] Extracting classroom data from', students.length, 'students');
+            
             students.forEach(student => {
                 days.forEach(day => {
                     for (let i = 0; i < student.maxPeriods; i++) {
                         const content = student.schedule[day][i];
                         if (content) {
-                            // 정규식 대신 indexOf와 substring 사용
+                            console.log('[PROCESS] Processing ' + student.name + ' - ' + day + (i+1) + ': "' + content + '"');
+                            
                             let classroom = '';
                             let subject = '';
                             let teacher = '';
                             
-                            // 교실 정보 추출
-                            const locationStart = content.indexOf('<span class="location-chip">');
-                            const locationEnd = content.indexOf('</span>', locationStart);
-                            if (locationStart !== -1 && locationEnd !== -1) {
-                                classroom = content.substring(locationStart + 28, locationEnd);
-                            }
-                            
-                            // 과목 정보 추출
-                            const subjectStart = content.indexOf('<div class="subject-name">');
-                            const subjectEnd = content.indexOf('</div>', subjectStart);
-                            if (subjectStart !== -1 && subjectEnd !== -1) {
-                                subject = content.substring(subjectStart + 26, subjectEnd);
-                            }
-                            
-                            // 교사 정보 추출
-                            const teacherStart = content.indexOf('<span class="teacher-name">');
-                            const teacherEnd = content.indexOf('</span>', teacherStart);
-                            if (teacherStart !== -1 && teacherEnd !== -1) {
-                                teacher = content.substring(teacherStart + 27, teacherEnd);
+                            // HTML 태그가 있는 선택과목 처리
+                            if (content.includes('<div class="subject-name">')) {
+                                // 교실 정보 추출
+                                const locationStart = content.indexOf('<span class="location-chip">');
+                                const locationEnd = content.indexOf('</span>', locationStart);
+                                if (locationStart !== -1 && locationEnd !== -1) {
+                                    classroom = content.substring(locationStart + 28, locationEnd);
+                                }
+                                
+                                // 과목 정보 추출
+                                const subjectStart = content.indexOf('<div class="subject-name">');
+                                const subjectEnd = content.indexOf('</div>', subjectStart);
+                                if (subjectStart !== -1 && subjectEnd !== -1) {
+                                    subject = content.substring(subjectStart + 26, subjectEnd);
+                                }
+                                
+                                // 교사 정보 추출
+                                const teacherStart = content.indexOf('<span class="teacher-name">');
+                                const teacherEnd = content.indexOf('</span>', teacherStart);
+                                if (teacherStart !== -1 && teacherEnd !== -1) {
+                                    teacher = content.substring(teacherStart + 27, teacherEnd);
+                                }
+                            } else {
+                                // HTML 태그가 없는 고정수업 처리 (일반 텍스트)
+                                const plainText = content.trim();
+                                if (plainText && plainText !== '' && plainText !== '자습' && plainText !== '공강') {
+                                    subject = plainText;
+                                    // 고정수업의 경우 반별 교실 사용
+                                    // 2-1 형식을 201 형식으로 변환
+                                    if (student.homeroom && student.homeroom.includes('-')) {
+                                        const parts = student.homeroom.split('-');
+                                        if (parts.length === 2) {
+                                            classroom = parts[0] + parts[1].padStart(2, '0'); // 예: 2-1 → 201, 2-5 → 205
+                                        } else {
+                                            classroom = student.homeroom;
+                                        }
+                                    } else {
+                                        classroom = student.homeroom || '미정';
+                                    }
+                                    teacher = '담임'; // 기본값
+                                    console.log('[FIXED] Fixed class found: ' + subject + ' in ' + classroom + ' for ' + student.name);
+                                }
                             }
                             
                             if (classroom && subject) {
