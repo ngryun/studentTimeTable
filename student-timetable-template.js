@@ -428,19 +428,29 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
 
 // JavaScript 코드 생성 함수 - 정규식 오류 완전 수정 버전
 function generateTimetableJS(dataJsonString, enabledFeatures) {
-    // 디버깅: enabledFeatures 검증
+    // 디버깅: enabledFeatures 검증 및 기본값 설정
     if (!enabledFeatures || typeof enabledFeatures !== 'object') {
         console.warn('⚠️ enabledFeatures가 올바르지 않습니다. 기본값을 사용합니다.');
         enabledFeatures = { student: true, class: true, classroom: true, teacher: true };
     }
     
+    // 각 기능이 명시적으로 false가 아닌 경우 true로 설정 (안전장치)
+    const safeEnabledFeatures = {
+        student: enabledFeatures.student !== false,
+        class: enabledFeatures.class !== false,
+        classroom: enabledFeatures.classroom !== false,
+        teacher: enabledFeatures.teacher !== false
+    };
+    
+    console.log('🔧 Safe features applied:', safeEnabledFeatures);
+    
     return `
         // 디버깅: 생성된 JavaScript에서 features 확인
-        console.log('🎯 Templates received features:', ${JSON.stringify(enabledFeatures)});
+        console.log('🎯 Templates received features:', ${JSON.stringify(safeEnabledFeatures)});
         
         const allStudents = ${dataJsonString};
         console.log('학생 데이터 (첫 5개):', allStudents.slice(0, 5));
-        const enabledFeatures = ${JSON.stringify(enabledFeatures)};
+        const enabledFeatures = ${JSON.stringify(safeEnabledFeatures)};
         
         // 정규식 패턴들을 미리 정의 (템플릿 리터럴 오류 방지)
         const regexPatterns = {
@@ -482,11 +492,56 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
         
 
         function init() {
-            setupTabs();
-            setupEventListeners();
-            updateSearchPlaceholder();
-            updateFavoriteChips();
-            showEmptyState();
+            console.log('🚀 Initializing timetable system...');
+            console.log('📊 Features check at init:', enabledFeatures);
+            
+            // DOM이 준비될 때까지 기다림
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => {
+                    console.log('📄 DOM loaded, starting setup...');
+                    performInit();
+                });
+            } else {
+                console.log('📄 DOM already loaded, starting setup...');
+                performInit();
+            }
+        }
+        
+        function performInit() {
+            try {
+                setupTabs();
+                setupEventListeners();
+                updateSearchPlaceholder();
+                updateFavoriteChips();
+                showEmptyState();
+                console.log('✅ Initialization completed successfully');
+            } catch (error) {
+                console.error('❌ Initialization failed:', error);
+                // 오류 발생시 기본 탭이라도 보여주기
+                const tabNavigation = document.querySelector('.tab-navigation');
+                if (tabNavigation) {
+                    tabNavigation.innerHTML = '' +
+                        '<button class="tab-button active" data-mode="student">🧑‍🎓 학생별</button>' +
+                        '<button class="tab-button" data-mode="class">🏫 반별</button>' +
+                        '<button class="tab-button" data-mode="classroom">🚪 교실별</button>' +
+                        '<button class="tab-button" data-mode="teacher">👨‍🏫 선생님별</button>';
+                    currentMode = 'student';  
+                    setupBasicEventListeners();
+                }
+            }
+        }
+        
+        function setupBasicEventListeners() {
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentMode = btn.dataset.mode;
+                    updateSearchPlaceholder();
+                    clearSearch();
+                    showEmptyState();
+                });
+            });
         }
 
         function setupTabs() {
@@ -495,22 +550,35 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
             
             console.log('🏗️ Setting up tabs with features:', enabledFeatures); // 디버깅용
             
-            if (enabledFeatures.student) {
+            // enabledFeatures가 없거나 모든 기능이 비활성화된 경우 기본값 설정
+            const safeFeatures = enabledFeatures || {};
+            const hasAnyFeature = safeFeatures.student || safeFeatures.class || safeFeatures.classroom || safeFeatures.teacher;
+            
+            if (!hasAnyFeature) {
+                console.warn('❌ No features enabled, using defaults');
+                // 기본적으로 모든 기능 활성화
+                safeFeatures.student = true;
+                safeFeatures.class = true;
+                safeFeatures.classroom = true;
+                safeFeatures.teacher = true;
+            }
+            
+            if (safeFeatures.student) {
                 availableModes.push('student');
                 tabsHtml.push('<button class="tab-button" data-mode="student">🧑‍🎓 학생별</button>');
                 console.log('✅ Student tab added');
             }
-            if (enabledFeatures.class) {
+            if (safeFeatures.class) {
                 availableModes.push('class');
                 tabsHtml.push('<button class="tab-button" data-mode="class">🏫 반별</button>');
                 console.log('✅ Class tab added');
             }
-            if (enabledFeatures.classroom) {
+            if (safeFeatures.classroom) {
                 availableModes.push('classroom');
                 tabsHtml.push('<button class="tab-button" data-mode="classroom">🚪 교실별</button>');
                 console.log('✅ Classroom tab added');
             }
-            if (enabledFeatures.teacher) {
+            if (safeFeatures.teacher) {
                 availableModes.push('teacher');
                 tabsHtml.push('<button class="tab-button" data-mode="teacher">👨‍🏫 선생님별</button>');
                 console.log('✅ Teacher tab added');
@@ -519,8 +587,8 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
             const tabNavigation = document.querySelector('.tab-navigation');
             
             if (availableModes.length === 0) {
-                // 모든 기능이 비활성화된 경우
-                console.error('❌ No features enabled!');
+                // 이 경우는 이제 발생하지 않아야 함
+                console.error('❌ No features enabled after safety check!');
                 tabNavigation.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">선택된 조회 기능이 없습니다.</div>';
                 return;
             }
@@ -638,21 +706,6 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
             
             autocompleteDropdown.innerHTML = filteredData.map(item => {
                 const icon = icons[item.type || 'student'];
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-                let displayName;
-                if (item.type === 'student' || (!item.type && item.name && item.homeroom)) {
-                    // 학번이 있으면 "이름 (학번) - 반", 없으면 "이름 (반)"
-                    displayName = item.studentId ? 
-                        item.name + ' (' + item.studentId + ') - ' + item.homeroom :
-                        item.name + ' (' + item.homeroom + ')';
-                } else {
-                    displayName = item.name;
-                }
-                return '<div class="autocomplete-item" onclick="selectItem(\\'' + item.uniqueId + '\\')">' + icon + ' ' + displayName + '</div>';
-=======
-=======
->>>>>>> Stashed changes
                 let displayName = '';
                 
                 if (item.type === 'student' || !item.type) {
@@ -683,10 +736,6 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
                 }
                 
                 return '<div class="autocomplete-item" onclick="selectItem(\\'' + (item.uniqueId || '') + '\\')">' + icon + ' ' + displayName + '</div>';
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
             }).join('');
             showDropdown();
         }
@@ -802,34 +851,19 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
             
             // 각 학생별로 개별 테이블 생성
             students.forEach(student => {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
+                const studentNumber = student.number ? String(student.number) : '';
+                const paddedNumber = studentNumber && studentNumber.length <= 5 ? studentNumber.padStart(5, '0') : studentNumber;
+                const numberDisplay = paddedNumber ? ' [' + paddedNumber + ']' : '';
+                
                 html += '<div style="margin-bottom: 30px;">' +
                         '<h3 style="margin: 20px 0 15px 0; color: var(--primary-color);">' + 
-                        student.name;
-                if (student.studentId) {
-                    html += ' <small style="color: var(--subtle-text);">(' + student.studentId + ')</small>';
-                }
-                html += '</h3>' +
+                        student.name + numberDisplay + '</h3>' +
                         '<div class="table-container">' +
                             '<table>' +
                                 '<thead>' +
                                     '<tr><th>교시</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th></tr>' +
                                 '</thead>' +
                                 '<tbody>';
-=======
-=======
->>>>>>> Stashed changes
-                const studentNumber = student.number ? String(student.number) : '';
-                const paddedNumber = studentNumber && studentNumber.length <= 5 ? studentNumber.padStart(5, '0') : studentNumber;
-                const numberDisplay = paddedNumber ? ' [' + paddedNumber + ']' : '';
-                
-                html += '<div class="student-card">' +
-                        '<h4>' + student.name + numberDisplay + '</h4>';
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
                 
                 // 교시별 행 생성
                 for (let i = 0; i < maxPeriods; i++) {
@@ -1121,14 +1155,6 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
             container.innerHTML = favorites.map(uniqueId => {
                 const student = allStudents.find(s => s.uniqueId === uniqueId);
                 if (!student) return '';
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-                const displayText = student.studentId ? 
-                    student.name + ' (' + student.studentId + ')' :
-                    student.name + ' (' + student.homeroom + ')';
-=======
-=======
->>>>>>> Stashed changes
                 
                 const homeroom = student.homeroom || '';
                 const number = student.number || '';
@@ -1145,10 +1171,6 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
                     displayText += ' [' + paddedNumber + ']';
                 }
                 
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
                 return '<button class="favorite-chip" onclick="selectItem(\\'' + uniqueId + '\\')">' + displayText + '</button>';
             }).join('');
         }

@@ -186,6 +186,17 @@
     <script src="student-timetable-template.js"></script>
 
     <script>
+        // 템플릿 스크립트가 로드될 때까지 기다리기
+        function waitForTemplate(callback) {
+            if (typeof window.StudentTimetableTemplate !== 'undefined') {
+                callback();
+            } else {
+                setTimeout(() => waitForTemplate(callback), 50);
+            }
+        }
+    </script>
+
+    <script>
         // 🔥 기존 긴 코드들이 여기에 들어가되, CSS와 템플릿 부분만 제거됨
         const UPLOAD_BOXES = {
             weekly: document.getElementById('upload-box-weekly'),
@@ -904,6 +915,14 @@
                 alert("모든 파일이 올바르게 업로드되었는지 확인해주세요.");
                 return;
             }
+            
+            // 템플릿이 로드될 때까지 기다린 후 실행
+            waitForTemplate(() => {
+                generateHtmlAfterTemplateLoaded();
+            });
+        }
+        
+        function generateHtmlAfterTemplateLoaded() {
             try {
                 const studentsData = processAllData();
                 if (studentsData.length === 0) {
@@ -933,6 +952,12 @@
                 const dataString = JSON.stringify(studentsData);
                 
                 // 🔥 외부 템플릿 사용 (새로운 매개변수 추가)
+                // 템플릿 객체가 로드되었는지 확인
+                if (typeof window.StudentTimetableTemplate === 'undefined') {
+                    alert('템플릿 파일이 제대로 로드되지 않았습니다. 페이지를 새로고침해주세요.');
+                    return;
+                }
+                
                 const finalHtml = window.StudentTimetableTemplate.getHtmlTemplate(
                     dataString, 
                     pageTitle, 
