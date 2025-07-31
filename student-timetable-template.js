@@ -563,7 +563,7 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
 }
 
 // JavaScript 코드 생성 함수 - 주간시간표 데이터 포함
-function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData) {
+function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weeklyFormat) {
     // 디버깅: enabledFeatures 검증 및 기본값 설정
     if (!enabledFeatures || typeof enabledFeatures !== 'object') {
         console.warn('⚠️ enabledFeatures가 올바르지 않습니다. 기본값을 사용합니다.');
@@ -588,7 +588,9 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData) {
         console.log('학생 데이터 (첫 5개):', allStudents.slice(0, 5));
         const enabledFeatures = ${JSON.stringify(safeEnabledFeatures)};
         const weeklyScheduleData = ${weeklyData ? JSON.stringify(weeklyData) : 'null'};
+        const weeklyFormat = '${weeklyFormat || 'formatA'}';
         console.log('주간시간표 데이터:', weeklyScheduleData ? '로드됨' : '없음');
+        console.log('주간시간표 포맷:', weeklyFormat);
         
         // 정규식 패턴들을 미리 정의 (템플릿 리터럴 오류 방지)
         const regexPatterns = {
@@ -616,7 +618,23 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData) {
 
         // 각종 데이터 추출
         const classData = extractClassData(allStudents);
-        const classroomData = extractClassroomData(allStudents);
+        
+        // 교실별 데이터: 1단계 주간시간표의 고정수업을 기본으로 하고, 2단계 선택과목으로 보완
+        let classroomData = {};
+        if (weeklyScheduleData) {
+            // 1단계: 주간시간표에서 고정수업의 교실별 데이터 추출 (fixedSchedules 방식과 동일)
+            const fixedSchedules = processWeeklyDataForFixedSchedules(weeklyScheduleData, weeklyFormat);
+            classroomData = extractClassroomDataFromFixedSchedules(fixedSchedules);
+            console.log('[CLASSROOM] Fixed schedules classroom data extracted:', Object.keys(classroomData).length, 'classrooms');
+            
+            // 2단계: 선택과목 정보를 교실별로 추가
+            addElectiveSubjectsToClassrooms(classroomData, allStudents);
+            console.log('[CLASSROOM] Added elective subjects');
+        } else {
+            // 주간시간표가 없으면 학생 데이터만 사용
+            classroomData = extractClassroomData(allStudents);
+        }
+        
         const teacherData = weeklyScheduleData ? extractTeacherDataFromWeekly(weeklyScheduleData) : extractTeacherData(allStudents);
 
         let favorites = JSON.parse(localStorage.getItem('favStudents') || '[]');
@@ -1208,9 +1226,485 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData) {
             scheduleContainer.innerHTML = html;
         }
 
+        // 과목명과 교사명 분리 함수
+        function parseSubjectAndTeacher(rawString) {
+            if (!rawString) return { subject: '', teacher: '' };
+            
+            const patterns = [
+                /^(.+?)\\((.+?)\\)$/, // 과목명(교사명)
+                /^(.+?)\\s+([가-힣]{2,4})$/, // 과목명 교사명 (한글 2-4자)
+                /^(.+)$/ // 과목명만
+            ];
+            
+            for (const pattern of patterns) {
+                const match = rawString.match(pattern);
+                if (match) {
+                    if (match.length === 3) {
+                        let teacherName = match[2].trim();
+                        teacherName = teacherName.replace(/\\(\\d+\\)$/, '');
+                        return { subject: match[1].trim(), teacher: teacherName };
+                    } else {
+                        return { subject: match[1].trim(), teacher: '' };
+                    }
+                }
+            }
+            
+            return { subject: rawString.trim(), teacher: '' };
+        }
+
+        // 주간시간표에서 고정수업 데이터 처리 (index.html의 processAllData와 동일한 방식)
+        function processWeeklyDataForFixedSchedules(weeklyData, weeklyFormat) {
+            console.log('[FIXED] Processing weekly data for fixed schedules');
+            const fixedSchedules = {};
+            const daysInOrder = ['월', '화', '수', '목', '금'];
+            let periodStructure, maxPeriods;
+
+            if (weeklyFormat === 'formatB') {
+                // 압핀 양식 처리
+                const dayHeaders = weeklyData[2] || [];
+                const periodHeaders = weeklyData[3] || [];
+                
+                let dayRanges = {};
+                let currentDay = '';
+                for (let i = 1; i < dayHeaders.length; i++) {
+                    if (dayHeaders[i] && ['월', '화', '수', '목', '금'].includes(dayHeaders[i])) {
+                        currentDay = dayHeaders[i];
+                        if (!dayRanges[currentDay]) dayRanges[currentDay] = [];
+                    }
+                    if (currentDay && periodHeaders[i]) {
+                        dayRanges[currentDay].push({ period: periodHeaders[i], column: i });
+                    }
+                }
+                
+                const periodCounts = daysInOrder.map(day => dayRanges[day] ? dayRanges[day].length : 0);
+                maxPeriods = Math.max(...periodCounts, 0);
+                periodStructure = { periodCounts, maxPeriods };
+
+                // 교사 정보 수집
+                const teacherInfo = {};
+                for (let i = 0; i < weeklyData.length; i++) {
+                    const row = weeklyData[i];
+                    if (!row || !row[0]) continue;
+                    
+                    const classMatch = String(row[0]).match(/^(\\d)-(\\d+)$/);
+                    if (classMatch) {
+                        const homeroom = classMatch[1] + '-' + classMatch[2];
+                        teacherInfo[homeroom] = {};
+                        
+                        daysInOrder.forEach(day => {
+                            if (!dayRanges[day]) return;
+                            teacherInfo[homeroom][day] = {};
+                            
+                            dayRanges[day].forEach(periodInfo => {
+                                const cellValue = row[periodInfo.column];
+                                if (cellValue) {
+                                    const periodIndex = parseInt(periodInfo.period, 10);
+                                    const teacherMatch = String(cellValue).match(/([가-힣]{2,4})$/);
+                                    if (teacherMatch) {
+                                        teacherInfo[homeroom][day][periodIndex] = teacherMatch[1];
+                                    }
+                                }
+                            });
+                        });
+                    }
+                }
+
+                // 과목과 교실 정보 처리
+                for (let i = 4; i < weeklyData.length; i += 2) {
+                    const subjectRow = weeklyData[i];
+                    const locationRow = weeklyData[i + 1];
+
+                    if (!subjectRow || !locationRow) continue;
+                    if (locationRow[0] !== '' && locationRow[0] !== null && locationRow[0] !== undefined) continue;
+                    
+                    daysInOrder.forEach(day => {
+                        if (!dayRanges[day]) return;
+                        dayRanges[day].forEach(periodInfo => {
+                            const subject = subjectRow[periodInfo.column];
+                            const location = locationRow[periodInfo.column];
+
+                            if (subject && location) {
+                                const periodIndex = parseInt(periodInfo.period, 10);
+                                
+                                if (/^\\d+-\\d+$/.test(String(location).trim())) {
+                                    const homeroom = String(location).trim();
+                                    if (!fixedSchedules[homeroom]) {
+                                        fixedSchedules[homeroom] = { schedule: {} };
+                                        daysInOrder.forEach(d => { 
+                                            fixedSchedules[homeroom].schedule[d] = Array(maxPeriods).fill(null); 
+                                        });
+                                    }
+                                    
+                                    if (periodIndex >= 1) {
+                                        const arrayIndex = periodIndex - 1;
+                                        const teacherName = teacherInfo[homeroom] && 
+                                                           teacherInfo[homeroom][day] && 
+                                                           teacherInfo[homeroom][day][periodIndex] || '';
+                                        
+                                        const subjectName = String(subject).trim();
+                                        
+                                        fixedSchedules[homeroom].schedule[day][arrayIndex] = { 
+                                            subject: subjectName, 
+                                            teacher: teacherName,
+                                            location: ''
+                                        };
+                                    }
+                                }
+                            }
+                        });
+                    });
+                }
+                
+                // 교실 정보 보완
+                for (let i = 4; i < weeklyData.length; i += 2) {
+                    const subjectRow = weeklyData[i];
+                    const locationRow = weeklyData[i + 1];
+
+                    if (!subjectRow || !locationRow) continue;
+                    if (locationRow[0] !== '' && locationRow[0] !== null && locationRow[0] !== undefined) continue;
+                    
+                    daysInOrder.forEach(day => {
+                        if (!dayRanges[day]) return;
+                        dayRanges[day].forEach(periodInfo => {
+                            const subject = subjectRow[periodInfo.column];
+                            const location = locationRow[periodInfo.column];
+
+                            if (subject && location && !/^\\d+-\\d+$/.test(String(location).trim())) {
+                                const classroomName = String(location).trim();
+                                const subjectName = String(subject).trim();
+                                const periodIndex = parseInt(periodInfo.period, 10);
+                                
+                                Object.keys(fixedSchedules).forEach(homeroom => {
+                                    const arrayIndex = periodIndex - 1;
+                                    if (arrayIndex >= 0 && fixedSchedules[homeroom].schedule[day][arrayIndex]) {
+                                        const schedule = fixedSchedules[homeroom].schedule[day][arrayIndex];
+                                        if (schedule && schedule.subject === subjectName) {
+                                            schedule.location = classroomName;
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                    });
+                }
+                
+            } else {
+                // formatA (컴시간 양식) 처리
+                const totalCells = weeklyData.length > 0 && weeklyData[0].length > 1 ? weeklyData[0].length - 1 : 33;
+                periodStructure = calculatePeriodStructure(totalCells);
+                maxPeriods = periodStructure.maxPeriods;
+
+                weeklyData.forEach(row => {
+                    const teacherName = row[0] ? String(row[0]).trim().replace(/\(\d+\)$/, '') : '';
+                    const scheduleData = row.slice(1);
+                    let currentIndex = 0;
+                    
+                    for (let i = 0; i < daysInOrder.length; i++) {
+                        const day = daysInOrder[i];
+                        const count = periodStructure.periodCounts[i] || 0;
+                        const daySchedule = scheduleData.slice(currentIndex, currentIndex + count);
+                        
+                        daySchedule.forEach((cell, periodIndex) => {
+                            if (cell) {
+                                const cellStr = String(cell);
+                                if (/^\\d{3}\\s/.test(cellStr)) {
+                                    const classIdentifier = cellStr.substring(0, 3);
+                                    const grade = classIdentifier.charAt(0);
+                                    const classNum = classIdentifier.substring(1).replace(/^0/, '');
+                                    const homeroom = grade + '-' + classNum;
+                                    
+                                    if (!fixedSchedules[homeroom]) {
+                                        fixedSchedules[homeroom] = { schedule: {} };
+                                        daysInOrder.forEach(d => { 
+                                            fixedSchedules[homeroom].schedule[d] = Array(maxPeriods).fill(null); 
+                                        });
+                                    }
+                                    
+                                    const remainingText = cellStr.substring(4).trim();
+                                    
+                                    let classroom = '';
+                                    let subjectAndTeacher = remainingText;
+                                    
+                                    const classroomPatterns = [
+                                        /^(\\d+\\w*)\\s+(.+)$/,
+                                        /^(\\w+실\\d*)\\s+(.+)$/,
+                                        /^(\\w+교실\\d*)\\s+(.+)$/,
+                                        /^([A-Za-z]\\d*)\\s+(.+)$/,
+                                        /^(\\w+관\\d*)\\s+(.+)$/
+                                    ];
+                                    
+                                    for (const pattern of classroomPatterns) {
+                                        const match = remainingText.match(pattern);
+                                        if (match) {
+                                            classroom = match[1];
+                                            subjectAndTeacher = match[2];
+                                            break;
+                                        }
+                                    }
+                                    
+                                    const parsedInfo = parseSubjectAndTeacher(subjectAndTeacher);
+                                    const finalTeacherName = parsedInfo.teacher || teacherName;
+                                    
+                                    fixedSchedules[homeroom].schedule[day][periodIndex] = { 
+                                        subject: parsedInfo.subject, 
+                                        teacher: finalTeacherName,
+                                        location: classroom
+                                    };
+                                }
+                            }
+                        });
+                        currentIndex += count;
+                    }
+                });
+            }
+            
+            console.log('[FIXED] Fixed schedules created for', Object.keys(fixedSchedules).length, 'homerooms');
+            return fixedSchedules;
+        }
+
+        // 주간시간표 포맷 감지 함수
+        function detectWeeklyFormat(weeklyData) {
+            if (!weeklyData || weeklyData.length < 4) return 'formatA';
+            
+            const row3 = weeklyData[2] || [];
+            if (row3.includes('월') || row3.includes('화') || row3.includes('수')) {
+                return 'formatB';
+            }
+            return 'formatA';
+        }
+
+        // 고정수업 데이터에서 교실별 데이터 추출
+        function extractClassroomDataFromFixedSchedules(fixedSchedules) {
+            console.log('[EXTRACT] Extracting classroom data from fixed schedules');
+            const classroomData = {};
+            const daysInOrder = ['월', '화', '수', '목', '금'];
+            
+            Object.keys(fixedSchedules).forEach(homeroom => {
+                const homeroomSchedule = fixedSchedules[homeroom].schedule;
+                
+                daysInOrder.forEach(day => {
+                    if (!homeroomSchedule[day]) return;
+                    
+                    homeroomSchedule[day].forEach((subjectInfo, periodIndex) => {
+                        if (!subjectInfo) return;
+                        
+                        let classroom = '';
+                        
+                        // 교실 정보 결정
+                        if (subjectInfo.location) {
+                            // location이 있으면 그것을 교실로 사용
+                            classroom = subjectInfo.location;
+                        } else {
+                            // location이 없으면 homeroom을 교실로 사용 (고정수업의 경우)
+                            classroom = homeroom;
+                        }
+                        
+                        const normalizedClassroom = normalizeClassroomName(classroom);
+                        const periodKey = day + (periodIndex + 1);
+                        
+                        if (!classroomData[normalizedClassroom]) {
+                            classroomData[normalizedClassroom] = {};
+                        }
+                        if (!classroomData[normalizedClassroom][periodKey]) {
+                            classroomData[normalizedClassroom][periodKey] = [];
+                        }
+                        
+                        // 해당 반의 모든 학생들을 찾아서 추가 (나중에 addElectiveSubjectsToClassrooms에서 추가됨)
+                        classroomData[normalizedClassroom][periodKey].push({
+                            subject: subjectInfo.subject,
+                            teacher: subjectInfo.teacher,
+                            students: [], // 여기서는 빈 배열, 나중에 학생 정보 추가
+                            homeroom: homeroom // 어느 반의 고정수업인지 기록
+                        });
+                        
+                        console.log('[EXTRACT] Added fixed class:', subjectInfo.subject, 'in', normalizedClassroom, 'for', homeroom);
+                    });
+                });
+            });
+            
+            console.log('[EXTRACT] Classroom data extracted:', Object.keys(classroomData));
+            return classroomData;
+        }
+
+        // 선택과목을 교실별 데이터에 추가
+        function addElectiveSubjectsToClassrooms(classroomData, allStudents) {
+            console.log('[ELECTIVE] Adding elective subjects to classrooms');
+            const daysInOrder = ['월', '화', '수', '목', '금'];
+            
+            // 1. 고정수업에 학생 정보 추가
+            allStudents.forEach(student => {
+                daysInOrder.forEach(day => {
+                    for (let i = 0; i < student.maxPeriods; i++) {
+                        const content = student.schedule[day][i];
+                        
+                        // 고정수업인지 확인 (HTML 태그가 없는 경우)
+                        if (content && !content.includes('<div class="subject-name">')) {
+                            const subject = content.trim();
+                            if (subject && subject !== '자습' && subject !== '공강') {
+                                // 해당 학생의 homeroom 교실에서 해당 시간의 고정수업 찾기
+                                const normalizedHomeroom = normalizeClassroomName(student.homeroom);
+                                const periodKey = day + (i + 1);
+                                
+                                if (classroomData[normalizedHomeroom] && classroomData[normalizedHomeroom][periodKey]) {
+                                    const classInfo = classroomData[normalizedHomeroom][periodKey].find(
+                                        item => item.subject === subject && item.homeroom === student.homeroom
+                                    );
+                                    if (classInfo && !classInfo.students.includes(student.name)) {
+                                        classInfo.students.push(student.name);
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // 선택과목인지 확인 (HTML 태그가 있는 경우)
+                        else if (content && content.includes('<div class="subject-name">')) {
+                            let classroom = '';
+                            let subject = '';
+                            let teacher = '';
+                            
+                            // 교실 정보 추출
+                            const locationStart = content.indexOf('<span class="location-chip">');
+                            const locationEnd = content.indexOf('</span>', locationStart);
+                            if (locationStart !== -1 && locationEnd !== -1) {
+                                classroom = content.substring(locationStart + 28, locationEnd);
+                            }
+                            
+                            // 과목 정보 추출
+                            const subjectStart = content.indexOf('<div class="subject-name">');
+                            const subjectEnd = content.indexOf('</div>', subjectStart);
+                            if (subjectStart !== -1 && subjectEnd !== -1) {
+                                subject = content.substring(subjectStart + 26, subjectEnd);
+                            }
+                            
+                            // 교사 정보 추출
+                            const teacherStart = content.indexOf('<span class="teacher-name">');
+                            const teacherEnd = content.indexOf('</span>', teacherStart);
+                            if (teacherStart !== -1 && teacherEnd !== -1) {
+                                teacher = content.substring(teacherStart + 27, teacherEnd);
+                            }
+                            
+                            if (classroom && subject) {
+                                const normalizedClassroom = normalizeClassroomName(classroom);
+                                const periodKey = day + (i + 1);
+                                
+                                if (!classroomData[normalizedClassroom]) {
+                                    classroomData[normalizedClassroom] = {};
+                                }
+                                if (!classroomData[normalizedClassroom][periodKey]) {
+                                    classroomData[normalizedClassroom][periodKey] = [];
+                                }
+                                
+                                // 같은 과목과 교사의 수업 찾기
+                                let existingClass = classroomData[normalizedClassroom][periodKey].find(
+                                    item => item.subject === subject && item.teacher === teacher
+                                );
+                                
+                                if (existingClass) {
+                                    // 기존 수업에 학생 추가
+                                    if (!existingClass.students.includes(student.name)) {
+                                        existingClass.students.push(student.name);
+                                    }
+                                } else {
+                                    // 새 선택과목 수업 추가
+                                    classroomData[normalizedClassroom][periodKey].push({
+                                        subject: subject,
+                                        teacher: teacher,
+                                        students: [student.name]
+                                    });
+                                    console.log('[ELECTIVE] Added elective class:', subject, 'in', normalizedClassroom);
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+            
+            console.log('[ELECTIVE] Final classroom data:', Object.keys(classroomData));
+        }
+
+        // 교실별 데이터 병합 함수
+        function mergeClassroomData(weeklyClassroomData, studentClassroomData) {
+            console.log('[MERGE] Starting to merge classroom data');
+            console.log('[MERGE] Weekly classrooms:', Object.keys(weeklyClassroomData));
+            console.log('[MERGE] Student classrooms:', Object.keys(studentClassroomData));
+            
+            // 학생 데이터의 교실별 정보를 주간시간표 데이터와 병합
+            Object.keys(studentClassroomData).forEach(classroom => {
+                const normalizedClassroom = normalizeClassroomName(classroom);
+                console.log('[MERGE] Processing classroom:', classroom, '→', normalizedClassroom);
+                
+                if (!weeklyClassroomData[normalizedClassroom]) {
+                    weeklyClassroomData[normalizedClassroom] = {};
+                    console.log('[MERGE] Created new classroom entry:', normalizedClassroom);
+                }
+                
+                Object.keys(studentClassroomData[classroom]).forEach(periodKey => {
+                    if (!weeklyClassroomData[normalizedClassroom][periodKey]) {
+                        weeklyClassroomData[normalizedClassroom][periodKey] = [];
+                    }
+                    
+                    // 학생 정보를 기존 수업에 추가하거나 새로운 수업 정보 생성
+                    const studentPeriodData = studentClassroomData[classroom][periodKey];
+                    studentPeriodData.forEach(studentInfo => {
+                        // 같은 과목과 교사를 찾아서 학생을 추가
+                        const existingClass = weeklyClassroomData[normalizedClassroom][periodKey].find(
+                            item => item.subject === studentInfo.subject && item.teacher === studentInfo.teacher
+                        );
+                        
+                        if (existingClass) {
+                            // 기존 수업에 학생 추가
+                            existingClass.students.push(...studentInfo.students);
+                            console.log('[MERGE] Added students to existing class:', studentInfo.subject, 'in', normalizedClassroom);
+                        } else {
+                            // 새로운 수업 정보 추가
+                            weeklyClassroomData[normalizedClassroom][periodKey].push({
+                                subject: studentInfo.subject,
+                                teacher: studentInfo.teacher,
+                                students: [...studentInfo.students]
+                            });
+                            console.log('[MERGE] Added new class:', studentInfo.subject, 'in', normalizedClassroom);
+                        }
+                    });
+                });
+            });
+            
+            console.log('[MERGE] Final merged classrooms:', Object.keys(weeklyClassroomData));
+        }
+
+        // 교실명 정규화 함수
+        function normalizeClassroomName(classroom) {
+            if (!classroom) return '';
+            
+            const classroomStr = String(classroom).trim();
+            
+            // 2-1, 3-5 형태를 201, 305 형태로 변환
+            const dashPattern = /^(\\d+)-(\\d+)$/;
+            const dashMatch = classroomStr.match(dashPattern);
+            if (dashMatch) {
+                const grade = dashMatch[1];
+                const classNum = dashMatch[2].padStart(2, '0');
+                return grade + classNum;
+            }
+            
+            // 201, 305 형태는 그대로 유지
+            const numberPattern = /^\\d{3}$/;
+            if (numberPattern.test(classroomStr)) {
+                return classroomStr;
+            }
+            
+            // 기타 교실명 (과학실, 음악실 등)은 그대로 반환
+            return classroomStr;
+        }
+
         // 주간시간표에서 교실별 데이터 추출
-        function extractClassroomDataFromWeekly(weeklyData) {
+        function extractClassroomDataFromWeekly(weeklyData, weeklyFormat) {
             console.log('[WEEKLY] Extracting classroom data from weekly schedule');
+            console.log('[WEEKLY] weeklyFormat:', weeklyFormat);
+            console.log('[WEEKLY] weeklyData length:', weeklyData ? weeklyData.length : 'null');
+            if (weeklyData && weeklyData.length > 0) {
+                console.log('[WEEKLY] First few rows:', weeklyData.slice(0, 5));
+            }
+            
             const classroomData = {};
             
             if (!weeklyData || !Array.isArray(weeklyData)) {
@@ -1218,16 +1712,172 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData) {
                 return classroomData;
             }
             
-            // 주간시간표 파싱 로직은 파일 형식에 따라 다름
-            // 여기서는 기본적인 구조를 가정
-            weeklyData.forEach((row, rowIndex) => {
-                if (!row || !Array.isArray(row)) return;
-                
-                // 각 행을 분석하여 교실, 시간, 과목, 선생님 정보 추출
-                // 실제 구현은 주간시간표 파일의 구체적인 형식에 따라 달라질 수 있음
-                console.log('[WEEKLY] Processing row:', rowIndex, row.slice(0, 10));
-            });
+            const daysInOrder = ['월', '화', '수', '목', '금'];
             
+            if (weeklyFormat === 'formatB') {
+                // 압핀 양식 처리
+                const dayHeaders = weeklyData[2] || [];
+                const periodHeaders = weeklyData[3] || [];
+                
+                // 열별 요일/교시 매핑
+                const columnMap = {};
+                let currentDay = '';
+                for (let i = 1; i < dayHeaders.length; i++) {
+                    if (dayHeaders[i] && daysInOrder.includes(dayHeaders[i])) {
+                        currentDay = dayHeaders[i];
+                    }
+                    if (currentDay && periodHeaders[i]) {
+                        columnMap[i] = { day: currentDay, period: parseInt(periodHeaders[i], 10) };
+                    }
+                }
+                
+                // 과목과 교실 정보 추출
+                console.log('[WEEKLY formatB] Processing', weeklyData.length, 'rows');
+                for (let i = 4; i < weeklyData.length; i += 2) {
+                    const subjectRow = weeklyData[i];
+                    const locationRow = weeklyData[i + 1];
+                    
+                    if (!subjectRow || !locationRow) continue;
+                    if (locationRow[0] !== '' && locationRow[0] !== null) continue;
+                    
+                    console.log('[WEEKLY formatB] Processing subject row:', i, subjectRow.slice(0, 10));
+                    console.log('[WEEKLY formatB] Processing location row:', i+1, locationRow.slice(0, 10));
+                    
+                    for (let col = 1; col < subjectRow.length; col++) {
+                        const subject = subjectRow[col];
+                        const location = locationRow[col];
+                        const timeInfo = columnMap[col];
+                        
+                        if (subject && location && timeInfo) {
+                            console.log('[WEEKLY formatB] Found class:', subject, 'in', location, 'at', timeInfo.day + timeInfo.period);
+                            
+                            const normalizedClassroom = normalizeClassroomName(location);
+                            if (normalizedClassroom) {
+                                const periodKey = timeInfo.day + timeInfo.period;
+                                
+                                if (!classroomData[normalizedClassroom]) {
+                                    classroomData[normalizedClassroom] = {};
+                                }
+                                if (!classroomData[normalizedClassroom][periodKey]) {
+                                    classroomData[normalizedClassroom][periodKey] = [];
+                                }
+                                
+                                // 교사 정보 추출 (과목 문자열에서)
+                                let teacher = '';
+                                const teacherMatch = String(subject).match(/([가-힣]{2,4})$/);
+                                if (teacherMatch) {
+                                    teacher = teacherMatch[1];
+                                }
+                                
+                                const subjectName = String(subject).replace(/\\s*[가-힣]{2,4}$/, '').trim();
+                                
+                                // 중복 체크
+                                const existing = classroomData[normalizedClassroom][periodKey].find(
+                                    item => item.subject === subjectName && item.teacher === teacher
+                                );
+                                
+                                if (!existing) {
+                                    classroomData[normalizedClassroom][periodKey].push({
+                                        subject: subjectName,
+                                        teacher: teacher,
+                                        students: [] // 주간시간표에서는 학생 정보가 없음
+                                    });
+                                    console.log('[WEEKLY formatB] Added classroom:', normalizedClassroom, 'subject:', subjectName, 'teacher:', teacher);
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                // formatA (컴시간 양식) 처리
+                const totalCells = weeklyData.length > 0 && weeklyData[0].length > 1 ? weeklyData[0].length - 1 : 33;
+                const periodStructure = calculatePeriodStructure(totalCells);
+                console.log('[WEEKLY formatA] Period structure:', periodStructure);
+                
+                weeklyData.forEach((row, rowIndex) => {
+                    if (!row || !Array.isArray(row)) return;
+                    
+                    const teacherName = row[0] ? String(row[0]).trim().replace(/\(\d+\)$/, '') : '';
+                    const scheduleData = row.slice(1);
+                    let currentIndex = 0;
+                    
+                    console.log('[WEEKLY formatA] Processing row', rowIndex, 'teacher:', teacherName);
+                    
+                    for (let i = 0; i < daysInOrder.length; i++) {
+                        const day = daysInOrder[i];
+                        const count = periodStructure.periodCounts[i] || 0;
+                        const daySchedule = scheduleData.slice(currentIndex, currentIndex + count);
+                        
+                        daySchedule.forEach((cell, periodIndex) => {
+                            if (cell) {
+                                const cellStr = String(cell);
+                                console.log('[WEEKLY formatA] Cell content:', cellStr);
+                                
+                                // 컴시간 양식: "201 301 수학 홍길동" 형태
+                                if (/^\\d{3}\\s/.test(cellStr)) {
+                                    const remainingText = cellStr.substring(4).trim(); // "301 수학 홍길동"
+                                    
+                                    // 교실 정보 추출 (첫 번째 단어가 교실)
+                                    let classroom = '';
+                                    let subjectAndTeacher = remainingText;
+                                    
+                                    const classroomPatterns = [
+                                        /^(\d+\w*)\s+(.+)$/, // "301 수학 홍길동"
+                                        /^(\w+실\d*)\s+(.+)$/, // "과학실 물리 김선생"
+                                        /^(\w+교실\d*)\s+(.+)$/, // "음악교실 음악 이선생"
+                                        /^([A-Za-z]\d*)\s+(.+)$/, // "A101 영어 박선생"
+                                        /^(\w+관\d*)\s+(.+)$/ // "체육관 체육 최선생"
+                                    ];
+                                    
+                                    for (const pattern of classroomPatterns) {
+                                        const match = remainingText.match(pattern);
+                                        if (match) {
+                                            classroom = match[1];
+                                            subjectAndTeacher = match[2];
+                                            break;
+                                        }
+                                    }
+                                    
+                                    if (classroom) {
+                                        const normalizedClassroom = normalizeClassroomName(classroom);
+                                        const periodKey = day + (periodIndex + 1);
+                                        
+                                        if (!classroomData[normalizedClassroom]) {
+                                            classroomData[normalizedClassroom] = {};
+                                        }
+                                        if (!classroomData[normalizedClassroom][periodKey]) {
+                                            classroomData[normalizedClassroom][periodKey] = [];
+                                        }
+                                        
+                                        // 과목과 교사 정보 분리
+                                        const parsedInfo = parseSubjectAndTeacher(subjectAndTeacher);
+                                        
+                                        // 중복 체크
+                                        const existing = classroomData[normalizedClassroom][periodKey].find(
+                                            item => item.subject === parsedInfo.subject && item.teacher === parsedInfo.teacher
+                                        );
+                                        
+                                        if (!existing) {
+                                            classroomData[normalizedClassroom][periodKey].push({
+                                                subject: parsedInfo.subject,
+                                                teacher: parsedInfo.teacher,
+                                                students: [] // 주간시간표에서는 학생 정보가 없음
+                                            });
+                                            console.log('[WEEKLY formatA] Added classroom:', normalizedClassroom, 'subject:', parsedInfo.subject, 'teacher:', parsedInfo.teacher);
+                                        }
+                                    } else {
+                                        console.log('[WEEKLY formatA] No classroom found in:', remainingText);
+                                    }
+                                }
+                            }
+                        });
+                        currentIndex += count;
+                    }
+                });
+            }
+            
+            console.log('[WEEKLY] Final classroom data:', Object.keys(classroomData));
+            console.log('[WEEKLY] Total classrooms found:', Object.keys(classroomData).length);
             return classroomData;
         }
         
@@ -1423,7 +2073,8 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData) {
                                 const locationStart = content.indexOf('<span class="location-chip">');
                                 const locationEnd = content.indexOf('</span>', locationStart);
                                 if (locationStart !== -1 && locationEnd !== -1) {
-                                    classroom = content.substring(locationStart + 28, locationEnd);
+                                    const rawClassroom = content.substring(locationStart + 28, locationEnd);
+                                    classroom = normalizeClassroomName(rawClassroom);
                                 }
                                 
                                 // 과목 정보 추출
@@ -1444,18 +2095,8 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData) {
                                 const plainText = content.trim();
                                 if (plainText && plainText !== '' && plainText !== '자습' && plainText !== '공강') {
                                     subject = plainText;
-                                    // 고정수업의 경우 반별 교실 사용
-                                    // 2-1 형식을 201 형식으로 변환
-                                    if (student.homeroom && student.homeroom.includes('-')) {
-                                        const parts = student.homeroom.split('-');
-                                        if (parts.length === 2) {
-                                            classroom = parts[0] + parts[1].padStart(2, '0'); // 예: 2-1 → 201, 2-5 → 205
-                                        } else {
-                                            classroom = student.homeroom;
-                                        }
-                                    } else {
-                                        classroom = student.homeroom || '미정';
-                                    }
+                                    // 고정수업의 경우 반별 교실 사용 (정규화 적용)
+                                    classroom = normalizeClassroomName(student.homeroom);
                                     teacher = '담임'; // 기본값
                                     console.log('[FIXED] Fixed class found: ' + subject + ' in ' + classroom + ' for ' + student.name);
                                 }
@@ -1669,7 +2310,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData) {
 }
 
 // 메인 HTML 템플릿 생성 함수 - 주간시간표 데이터 추가
-function getHtmlTemplate(dataJsonString, pageTitle, iconBase64, selectedTheme = 'serenity', enabledFeatures = {student: true, class: true, classroom: true, teacher: true}, weeklyData = null) {
+function getHtmlTemplate(dataJsonString, pageTitle, iconBase64, selectedTheme = 'serenity', enabledFeatures = {student: true, class: true, classroom: true, teacher: true}, weeklyData = null, weeklyFormat = 'formatA') {
     // 디버깅: 매개변수 검증
     console.log('Template received parameters:', {
         dataLength: dataJsonString?.length || 0,
@@ -1677,7 +2318,8 @@ function getHtmlTemplate(dataJsonString, pageTitle, iconBase64, selectedTheme = 
         hasIcon: !!iconBase64,
         selectedTheme,
         enabledFeatures,
-        hasWeeklyData: !!weeklyData
+        hasWeeklyData: !!weeklyData,
+        weeklyFormat
     });
     
     return `<!DOCTYPE html>
@@ -1710,7 +2352,7 @@ function getHtmlTemplate(dataJsonString, pageTitle, iconBase64, selectedTheme = 
     </div>
     
     <script>
-        ${generateTimetableJS(dataJsonString, enabledFeatures, weeklyData)}
+        ${generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weeklyFormat)}
     </script>
 </body>
 </html>`;
