@@ -422,6 +422,24 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             thead th { background: var(--header-bg) !important; color: var(--header-text) !important; -webkit-print-color-adjust: exact; }
             td { height: auto; padding: 6px 4px;}
             .location-chip, .teacher-name { font-size: 8pt; padding: 2px 5px; -webkit-print-color-adjust: exact; }
+            
+            /* 반별 탭 인쇄 시 학생별 시간표 페이지 나누기 */
+            .student-timetable-container { 
+                page-break-inside: avoid; 
+                page-break-after: auto; 
+                margin-bottom: 20px; 
+            }
+            .student-timetable-container:not(:first-child) { 
+                page-break-before: always; 
+            }
+            .student-timetable-container h3 { 
+                page-break-after: avoid; 
+                font-size: 11pt; 
+                margin: 10px 0 8px 0; 
+            }
+            .student-timetable-container .table-container { 
+                page-break-inside: avoid; 
+            }
         }
     `;
 }
@@ -486,8 +504,6 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
         let selectedIndex = -1;
         let currentMode = ''; // 초기값은 빈 문자열로, setupTabs에서 설정됨
 
-        const searchInput = document.getElementById('search-input');
-        const autocompleteDropdown = document.getElementById('autocomplete-dropdown');
         const scheduleContainer = document.getElementById('schedule-container');
         
 
@@ -510,9 +526,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
         function performInit() {
             try {
                 setupTabs();
-                setupEventListeners();
-                updateSearchPlaceholder();
-                updateFavoriteChips();
+                updateSearchSection();
                 showEmptyState();
                 console.log('✅ Initialization completed successfully');
             } catch (error) {
@@ -537,8 +551,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
                     document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                     currentMode = btn.dataset.mode;
-                    updateSearchPlaceholder();
-                    clearSearch();
+                    updateSearchSection();
                     showEmptyState();
                 });
             });
@@ -614,14 +627,18 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
                     document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                     currentMode = btn.dataset.mode;
-                    updateSearchPlaceholder();
-                    clearSearch();
+                    updateSearchSection();
                     showEmptyState();
                 });
             });
         }
 
         function setupEventListeners() {
+            const searchInput = document.getElementById('search-input');
+            const autocompleteDropdown = document.getElementById('autocomplete-dropdown');
+            
+            if (!searchInput || !autocompleteDropdown) return; // 학생별 탭이 아닌 경우
+            
             searchInput.addEventListener('input', e => {
                 const query = e.target.value.trim().toLowerCase();
                 if (query === '') {
@@ -630,34 +647,21 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
                     return;
                 }
                 
-                switch(currentMode) {
-                    case 'student':
-                        filteredData = allStudents.filter(student => {
-                            const name = student.name ? student.name.toLowerCase() : '';
-                            const homeroom = student.homeroom || '';
-                            const number = student.number || '';
-                            const studentNumber = number ? String(number) : '';
-                            
-                            return name.includes(query) || 
-                                   (homeroom + '-' + number).includes(query) ||
-                                   studentNumber.includes(query) ||
-                                   (studentNumber.length <= 5 ? studentNumber.padStart(5, '0') : studentNumber).includes(query);
-                        });
-                        break;
-                    case 'class':
-                        filteredData = Object.keys(classData).filter(cls => cls.toLowerCase().includes(query))
-                            .map(cls => ({uniqueId: cls, name: cls + '반', type: 'class'}));
-                        break;
-                    case 'classroom':
-                        filteredData = Object.keys(classroomData).filter(room => room.toLowerCase().includes(query))
-                            .map(room => ({uniqueId: room, name: room, type: 'classroom'}));
-                        break;
-                    case 'teacher':
-                        filteredData = Object.keys(teacherData).filter(teacher => teacher.toLowerCase().includes(query))
-                            .map(teacher => ({uniqueId: teacher, name: teacher + ' 선생님', type: 'teacher'}));
-                        break;
+                // 학생별 탭에서만 검색 기능 사용
+                if (currentMode === 'student') {
+                    filteredData = allStudents.filter(student => {
+                        const name = student.name ? student.name.toLowerCase() : '';
+                        const homeroom = student.homeroom || '';
+                        const number = student.number || '';
+                        const studentNumber = number ? String(number) : '';
+                        
+                        return name.includes(query) || 
+                               (homeroom + '-' + number).includes(query) ||
+                               studentNumber.includes(query) ||
+                               (studentNumber.length <= 5 ? studentNumber.padStart(5, '0') : studentNumber).includes(query);
+                    });
+                    updateAutocomplete();
                 }
-                updateAutocomplete();
             });
 
             searchInput.addEventListener('keydown', e => {
@@ -683,24 +687,83 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
             });
         }
 
-        function updateSearchPlaceholder() {
-            const placeholders = {
-                student: '학생 이름 또는 학번을 입력하세요...',
-                class: '반을 입력하세요... (예: 1-1)',
-                classroom: '교실을 입력하세요... (예: 101)',
-                teacher: '선생님 성함을 입력하세요...'
-            };
-            searchInput.placeholder = placeholders[currentMode] || '검색어를 입력하세요...';
+        function updateSearchSection() {
+            const searchSection = document.getElementById('search-section');
+            
+            if (currentMode === 'student') {
+                // 학생별 탭: 검색창 + 즐겨찾기
+                searchSection.innerHTML = '' +
+                    '<div class="search-container">' +
+                        '<div class="search-icon">' +
+                            '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+                                '<circle cx="11" cy="11" r="8"></circle>' +
+                                '<line x1="21" y1="21" x2="16.65" y2="16.65"></line>' +
+                            '</svg>' +
+                        '</div>' +
+                        '<input type="text" id="search-input" placeholder="학생 이름 또는 학번을 입력하세요...">' +
+                        '<div class="autocomplete-dropdown" id="autocomplete-dropdown"></div>' +
+                    '</div>' +
+                    '<div class="favorites-section">' +
+                        '<div class="favorites-title">자주 찾는 학생</div>' +
+                        '<div class="favorite-chips" id="favorite-chips"></div>' +
+                    '</div>';
+            } else if (currentMode === 'class') {
+                // 반별 탭: 반 목록
+                const classList = Object.keys(classData).sort();
+                const classButtons = classList.map(cls => 
+                    '<button class="favorite-chip" onclick="selectItem(\\'' + cls + '\\');">' + cls + '반</button>'
+                ).join('');
+                searchSection.innerHTML = '' +
+                    '<div class="favorites-section">' +
+                        '<div class="favorites-title">반 선택</div>' +
+                        '<div class="favorite-chips">' + classButtons + '</div>' +
+                    '</div>';
+            } else if (currentMode === 'classroom') {
+                // 교실별 탭: 교실 목록
+                const classroomList = Object.keys(classroomData).sort();
+                const classroomButtons = classroomList.map(room => 
+                    '<button class="favorite-chip" onclick="selectItem(\\'' + room + '\\');">' + room + '</button>'
+                ).join('');
+                searchSection.innerHTML = '' +
+                    '<div class="favorites-section">' +
+                        '<div class="favorites-title">교실 선택</div>' +
+                        '<div class="favorite-chips">' + classroomButtons + '</div>' +
+                    '</div>';
+            } else if (currentMode === 'teacher') {
+                // 선생님별 탭: 선생님 목록
+                const teacherList = Object.keys(teacherData).sort();
+                const teacherButtons = teacherList.map(teacher => 
+                    '<button class="favorite-chip" onclick="selectItem(\\'' + teacher + '\\');">' + teacher + ' 선생님</button>'
+                ).join('');
+                searchSection.innerHTML = '' +
+                    '<div class="favorites-section">' +
+                        '<div class="favorites-title">선생님 선택</div>' +
+                        '<div class="favorite-chips">' + teacherButtons + '</div>' +
+                    '</div>';
+            }
+            
+            // 학생별 탭에서만 이벤트 리스너 재설정
+            if (currentMode === 'student') {
+                setupEventListeners();
+                updateFavoriteChips();
+            }
         }
 
         function clearSearch() {
-            searchInput.value = '';
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) {
+                searchInput.value = '';
+            }
             filteredData = [];
             hideDropdown();
         }
 
         function updateAutocomplete() {
-            if (filteredData.length === 0) { hideDropdown(); return; }
+            const autocompleteDropdown = document.getElementById('autocomplete-dropdown');
+            if (filteredData.length === 0 || !autocompleteDropdown) { 
+                hideDropdown(); 
+                return; 
+            }
             
             const icons = {student: '🧑‍🎓', class: '🏫', classroom: '🚪', teacher: '👨‍🏫'};
             
@@ -741,24 +804,22 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
                 case 'student':
                     const student = allStudents.find(s => s.uniqueId === uniqueId);
                     if (student) {
-                        searchInput.value = student.name;
+                        const searchInput = document.getElementById('search-input');
+                        if (searchInput) searchInput.value = student.name;
                         hideDropdown();
                         displayStudentSchedule(uniqueId);
                     }
                     break;
                 case 'class':
-                    searchInput.value = uniqueId + '반';
-                    hideDropdown();
+                    // 반별 탭에서는 검색창이 없으므로 바로 표시
                     displayClassSchedule(uniqueId);
                     break;
                 case 'classroom':
-                    searchInput.value = uniqueId;
-                    hideDropdown();
+                    // 교실별 탭에서는 검색창이 없으므로 바로 표시  
                     displayClassroomSchedule(uniqueId);
                     break;
                 case 'teacher':
-                    searchInput.value = uniqueId + ' 선생님';
-                    hideDropdown();
+                    // 선생님별 탭에서는 검색창이 없으므로 바로 표시
                     displayTeacherSchedule(uniqueId);
                     break;
             }
@@ -860,13 +921,26 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
             
             // 각 학생별로 개별 테이블 생성
             students.forEach(student => {
-                const studentNumber = student.number ? String(student.number) : '';
-                const paddedNumber = studentNumber && studentNumber.length <= 5 ? studentNumber.padStart(5, '0') : studentNumber;
-                const numberDisplay = paddedNumber ? ' [' + paddedNumber + ']' : '';
+                // 학번 생성: 학년+반+번호
+                const homeroom = student.homeroom || '';
+                const number = student.number || '';
+                let studentId = '';
                 
-                html += '<div style="margin-bottom: 30px;">' +
+                if (homeroom && number) {
+                    const parts = homeroom.split('-');
+                    if (parts.length === 2) {
+                        const grade = parts[0]; // 학년
+                        const classNum = parts[1].padStart(2, '0'); // 반 (2자리)
+                        const studentNum = String(number).padStart(2, '0'); // 번호 (2자리)
+                        studentId = grade + classNum + studentNum; // 예: 20506
+                    }
+                }
+                
+                const displayName = studentId ? student.name + ' (' + studentId + ')' : student.name;
+                
+                html += '<div class="student-timetable-container" style="margin-bottom: 30px;">' +
                         '<h3 style="margin: 20px 0 15px 0; color: var(--primary-color);">' + 
-                        student.name + numberDisplay + '</h3>' +
+                        displayName + '</h3>' +
                         '<div class="table-container">' +
                             '<table>' +
                                 '<thead>' +
@@ -1185,16 +1259,27 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
             }).join('');
         }
         
-        function showDropdown() { if (filteredData.length > 0) autocompleteDropdown.style.display = 'block'; }
-        function hideDropdown() { autocompleteDropdown.style.display = 'none'; selectedIndex = -1; }
+        function showDropdown() { 
+            const autocompleteDropdown = document.getElementById('autocomplete-dropdown');
+            if (filteredData.length > 0 && autocompleteDropdown) {
+                autocompleteDropdown.style.display = 'block'; 
+            }
+        }
+        function hideDropdown() { 
+            const autocompleteDropdown = document.getElementById('autocomplete-dropdown');
+            if (autocompleteDropdown) {
+                autocompleteDropdown.style.display = 'none'; 
+            }
+            selectedIndex = -1; 
+        }
         function showEmptyState() { 
             const emptyStates = {
                 student: '<div class="empty-state"><div class="empty-state-icon">🧑‍🎓</div><h3>학생 이름을 검색하세요</h3></div>',
-                class: '<div class="empty-state"><div class="empty-state-icon">🏫</div><h3>반을 검색하세요</h3><p>예: 1-1, 2-3</p></div>',
-                classroom: '<div class="empty-state"><div class="empty-state-icon">🚪</div><h3>교실을 검색하세요</h3><p>예: 101, 음악실</p></div>',
-                teacher: '<div class="empty-state"><div class="empty-state-icon">👨‍🏫</div><h3>선생님 성함을 검색하세요</h3></div>'
+                class: '<div class="empty-state"><div class="empty-state-icon">🏫</div><h3>반을 선택하세요</h3></div>',
+                classroom: '<div class="empty-state"><div class="empty-state-icon">🚪</div><h3>교실을 선택하세요</h3></div>',
+                teacher: '<div class="empty-state"><div class="empty-state-icon">👨‍🏫</div><h3>선생님을 선택하세요</h3></div>'
             };
-            scheduleContainer.innerHTML = emptyStates[currentMode] || '<div class="empty-state"><div class="empty-state-icon">🔍</div><h3>검색어를 입력하세요</h3></div>'; 
+            scheduleContainer.innerHTML = emptyStates[currentMode] || '<div class="empty-state"><div class="empty-state-icon">🔍</div><h3>선택하세요</h3></div>'; 
         }
 
         // 초기화 실행
@@ -1236,20 +1321,7 @@ function getHtmlTemplate(dataJsonString, pageTitle, iconBase64, selectedTheme = 
         </div>
         
         <div id="search-section">
-            <div class="search-container">
-                <div class="search-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
-                </div>
-                <input type="text" id="search-input" placeholder="학생 이름 또는 학번을 입력하세요...">
-                <div class="autocomplete-dropdown" id="autocomplete-dropdown"></div>
-            </div>
-            <div class="favorites-section">
-                <div class="favorites-title">자주 찾는 학생</div>
-                <div class="favorite-chips" id="favorite-chips"></div>
-            </div>
+            <!-- 검색/선택 영역은 JavaScript에서 동적으로 생성됩니다 -->
         </div>
         
         <div id="schedule-container"></div>
