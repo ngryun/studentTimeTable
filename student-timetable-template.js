@@ -423,22 +423,61 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             td { height: auto; padding: 6px 4px;}
             .location-chip, .teacher-name { font-size: 8pt; padding: 2px 5px; -webkit-print-color-adjust: exact; }
             
-            /* 반별 탭 인쇄 시 학생별 시간표 페이지 나누기 */
-            .student-timetable-container { 
-                page-break-inside: avoid; 
-                page-break-after: auto; 
-                margin-bottom: 20px; 
+            /* 반별 탭 인쇄 시 - A4 용지 크기 고정 방식 */
+            .student-print-page {
+                /* A4 용지 크기: 210mm x 297mm */
+                width: 210mm !important;
+                height: 297mm !important;
+                padding: 15mm !important;
+                margin: 0 !important;
+                box-sizing: border-box !important;
+                
+                /* 페이지 나누기 */
+                page-break-before: always !important;
+                page-break-after: always !important;
+                page-break-inside: avoid !important;
+                
+                /* 레이아웃 */
+                display: block !important;
+                position: relative !important;
+                background: white !important;
             }
-            .student-timetable-container:not(:first-child) { 
-                page-break-before: always; 
+            
+            .student-print-page:first-child {
+                page-break-before: auto !important;
             }
-            .student-timetable-container h3 { 
-                page-break-after: avoid; 
-                font-size: 11pt; 
-                margin: 10px 0 8px 0; 
+            
+            .student-print-page:last-child {
+                page-break-after: auto !important;
             }
-            .student-timetable-container .table-container { 
-                page-break-inside: avoid; 
+            
+            .student-print-page h3 {
+                font-size: 16pt !important;
+                font-weight: bold !important;
+                text-align: center !important;
+                margin: 0 0 20mm 0 !important;
+                padding: 5mm 0 !important;
+                border-bottom: 2pt solid #000 !important;
+            }
+            
+            .student-print-page table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                font-size: 10pt !important;
+                margin: 0 !important;
+            }
+            
+            .student-print-page th,
+            .student-print-page td {
+                border: 1pt solid #000 !important;
+                padding: 3mm !important;
+                text-align: center !important;
+                vertical-align: middle !important;
+            }
+            
+            .student-print-page th {
+                background-color: #f0f0f0 !important;
+                font-weight: bold !important;
             }
         }
     `;
@@ -911,16 +950,17 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
                         '<button class="action-btn" onclick="window.print()">' +
                             '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
                                 '<polyline points="6 9 6 2 18 2 18 9"></polyline>' +
-                                '<path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2 2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>' +
+                                '<path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2 2h16a2 2 0 0 1-2 2h-2"></path>' +
                                 '<rect x="6" y="14" width="12" height="8"></rect>' +
                             '</svg> ' +
                             '인쇄' +
                         '</button>' +
                     '</div>' +
-                '</div>';
+                '</div>' +
+                '<div class="class-schedule-print-container">';
             
-            // 각 학생별로 개별 테이블 생성
-            students.forEach(student => {
+            // 각 학생별로 완전한 페이지 생성
+            students.forEach((student, index) => {
                 // 학번 생성: 학년+반+번호
                 const homeroom = student.homeroom || '';
                 const number = student.number || '';
@@ -938,9 +978,8 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
                 
                 const displayName = studentId ? student.name + ' (' + studentId + ')' : student.name;
                 
-                html += '<div class="student-timetable-container" style="margin-bottom: 30px;">' +
-                        '<h3 style="margin: 20px 0 15px 0; color: var(--primary-color);">' + 
-                        displayName + '</h3>' +
+                html += '<div class="student-print-page">' +
+                        '<h3>' + displayName + '</h3>' +
                         '<div class="table-container">' +
                             '<table>' +
                                 '<thead>' +
@@ -964,6 +1003,8 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
                 
                 html += '</tbody></table></div></div>';
             });
+            
+            html += '</div>'; // class-schedule-print-container 닫기
             scheduleContainer.innerHTML = html;
         }
 
@@ -1001,13 +1042,15 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
                     const usageInfo = scheduleData[periodKey] || [];
                     
                     if (usageInfo.length > 0) {
-                        const content = usageInfo.map(info => 
-                            '<div class="subject-name">' + info.subject + '</div>' +
-                             '<div class="details">' +
-                                 '<span class="teacher-name">' + info.teacher + '</span><br>' +
-                                 '<small>' + info.students.join(', ') + '</small>' +
-                             '</div>'
-                        ).join('<hr style="margin: 8px 0; border: 1px solid #eee;">');
+                        const content = usageInfo.map((info, infoIndex) => {
+                            const studentListId = 'students-' + classroomId + '-' + periodKey + '-' + infoIndex;
+                            return '<div class="subject-name">' + info.subject + '</div>' +
+                                   '<div class="details">' +
+                                       '<span class="teacher-name">' + info.teacher + '</span><br>' +
+                                       '<button class="favorite-chip" style="font-size: 11px; padding: 4px 8px; margin-top: 4px;" onclick="toggleStudentList(\\'' + studentListId + '\\')">{학생목록}</button>' +
+                                       '<div id="' + studentListId + '" style="display: none; margin-top: 4px; font-size: 11px; color: #666;">' + info.students.join(', ') + '</div>' +
+                                   '</div>';
+                        }).join('<hr style="margin: 8px 0; border: 1px solid #eee;">');
                         html += '<td>' + content + '</td>';
                     } else {
                         html += '<td style="background-color: #f8f9fa; color: #999;">비어있음</td>';
@@ -1272,6 +1315,17 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
             }
             selectedIndex = -1; 
         }
+        function toggleStudentList(studentListId) {
+            const element = document.getElementById(studentListId);
+            if (element) {
+                if (element.style.display === 'none') {
+                    element.style.display = 'block';
+                } else {
+                    element.style.display = 'none';
+                }
+            }
+        }
+
         function showEmptyState() { 
             const emptyStates = {
                 student: '<div class="empty-state"><div class="empty-state-icon">🧑‍🎓</div><h3>학생 이름을 검색하세요</h3></div>',
