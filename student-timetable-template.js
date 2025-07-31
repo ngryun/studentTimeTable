@@ -709,27 +709,23 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
                 let displayName = '';
                 
                 if (item.type === 'student' || !item.type) {
-                    // 더 안전한 데이터 접근
+                    // 이름(학번) 형식으로 표시 - 학년+반+번호
                     const name = item.name || '이름없음';
                     const homeroom = item.homeroom || '';
                     const number = item.number || '';
                     
                     displayName = name;
                     
-                    // 반 정보가 있으면 추가
-                    if (homeroom) {
-                        if (number) {
-                            displayName += ' (' + homeroom + '-' + number + ')';
-                        } else {
-                            displayName += ' (' + homeroom + ')';
+                    // 학번 생성: 학년+반+번호
+                    if (homeroom && number && String(number).trim() !== '') {
+                        const parts = homeroom.split('-');
+                        if (parts.length === 2) {
+                            const grade = parts[0]; // 학년
+                            const classNum = parts[1].padStart(2, '0'); // 반 (2자리)
+                            const studentNum = String(number).trim().padStart(2, '0'); // 번호 (2자리)
+                            const studentId = grade + classNum + studentNum; // 예: 20506
+                            displayName = name + ' (' + studentId + ')';
                         }
-                    }
-                    
-                    // 학번이 있으면 추가 (5자리로 패딩)
-                    if (number && String(number).trim() !== '') {
-                        const studentNumber = String(number).trim();
-                        const paddedNumber = studentNumber.length <= 5 ? studentNumber.padStart(5, '0') : studentNumber;
-                        displayName += ' [' + paddedNumber + ']';
                     }
                 } else {
                     displayName = item.name || '이름없음';
@@ -776,14 +772,27 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
             const days = ['월', '화', '수', '목', '금'];
             const { maxPeriods, periodCounts } = student;
             
-            // 학번 표시 준비
-            const studentNumber = student.number ? String(student.number) : '';
-            const paddedNumber = studentNumber && studentNumber.length <= 5 ? studentNumber.padStart(5, '0') : studentNumber;
-            const numberDisplay = paddedNumber ? ' [' + paddedNumber + ']' : '';
+            // 학번 표시 준비 - 학년+반+번호 형식으로 변경
+            const homeroom = student.homeroom || '';
+            const number = student.number ? String(student.number) : '';
+            let studentId = '';
+            
+            if (homeroom && number) {
+                // homeroom이 "2-5" 형식인 경우
+                const parts = homeroom.split('-');
+                if (parts.length === 2) {
+                    const grade = parts[0]; // 학년
+                    const classNum = parts[1].padStart(2, '0'); // 반 (2자리)
+                    const studentNum = number.padStart(2, '0'); // 번호 (2자리)
+                    studentId = grade + classNum + studentNum; // 예: 20506
+                }
+            }
+            
+            const displayName = studentId ? student.name + ' (' + studentId + ')' : student.name;
             
             let tableHTML = '<div class="schedule-header">' +
                     '<div class="schedule-info">' +
-                        '<h2>' + student.name + ' <small>(' + student.homeroom + '-' + student.number + ')' + numberDisplay + '</small></h2>' +
+                        '<h2>' + displayName + '</h2>' +
                     '</div>' +
                     '<div class="schedule-actions">' +
                         '<button class="action-btn ' + (isFavorite ? 'favorited' : '') + '" onclick="toggleFavorite(\\'' + uniqueId + '\\');">' +
@@ -1158,17 +1167,18 @@ function generateTimetableJS(dataJsonString, enabledFeatures) {
                 
                 const homeroom = student.homeroom || '';
                 const number = student.number || '';
-                const studentNumber = number ? String(number) : '';
-                const paddedNumber = studentNumber && studentNumber.length <= 5 ? studentNumber.padStart(5, '0') : studentNumber;
                 
+                // 이름(학번) 형식으로 표시 - 학년+반+번호
                 let displayText = student.name;
-                if (homeroom && number) {
-                    displayText += ' (' + homeroom + '-' + number + ')';
-                } else if (homeroom) {
-                    displayText += ' (' + homeroom + ')';
-                }
-                if (paddedNumber) {
-                    displayText += ' [' + paddedNumber + ']';
+                if (homeroom && number && String(number).trim() !== '') {
+                    const parts = homeroom.split('-');
+                    if (parts.length === 2) {
+                        const grade = parts[0]; // 학년
+                        const classNum = parts[1].padStart(2, '0'); // 반 (2자리)
+                        const studentNum = String(number).trim().padStart(2, '0'); // 번호 (2자리)
+                        const studentId = grade + classNum + studentNum; // 예: 20506
+                        displayText = student.name + ' (' + studentId + ')';
+                    }
                 }
                 
                 return '<button class="favorite-chip" onclick="selectItem(\\'' + uniqueId + '\\')">' + displayText + '</button>';
