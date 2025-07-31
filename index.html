@@ -3,14 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>학생 개인별 시간표 조회 HTML 생성기 (템플릿 기능) - 업그레이드 버전</title>
+    <title>학생 개인별 시간표 조회 HTML 페이지 생성기/title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <!-- 🔥 외부 CSS 파일 참조 -->
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div id="app-container">
-        <h1>학생 시간표 웹페이지 생성기 🚀 (업그레이드 버전)</h1>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h1>학생 개인별 시간표 조회 HTML 페이지 생성기</h1>
+            <div style="text-align: right;">
+                <a href="https://namgungyeon.tistory.com/131" target="_blank" style="display: inline-block; background: linear-gradient(45deg, #007bff, #0056b3); color: white; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-size: 14px; margin-bottom: 8px;">📖 도움말</a>
+                <div style="font-size: 12px; color: #666; font-style: italic;">made by Namgung yeon (seolak high school)</div>
+            </div>
+        </div>
 
         <div id="step1">
             <h2>1단계: 기본 파일 업로드</h2>
@@ -20,7 +26,7 @@
                     <span class="file-name">파일을 선택하거나 끌어다 놓으세요</span>
                 </div>
                 <div id="upload-box-selection" class="upload-box">
-                    <p>학생별선택.xlsx</p>
+                    <p>학생별선택과목파일.xlsx</p>
                     <span class="file-name">여러 개 업로드 가능</span>
                 </div>
             </div>
@@ -32,7 +38,7 @@
         <div id="step2" style="display: none;">
             <div class="step2-header">
                 <div class="step2-icon">⚙️</div>
-                <h2 class="step2-title">2단계: 상세 정보 입력</h2>
+                <h2 class="step2-title">2단계: 선택과목 상세 정보 입력</h2>
                 <span class="optional-badge">선택사항</span>
             </div>
             
