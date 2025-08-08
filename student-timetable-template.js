@@ -1471,7 +1471,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
             } else {
                 // formatA (컴시간 양식) 처리
                 const totalCells = weeklyData.length > 0 && weeklyData[0].length > 1 ? weeklyData[0].length - 1 : 33;
-                periodStructure = calculatePeriodStructure(totalCells);
+                periodStructure = calculatePeriodStructure(totalCells, weeklyData);
                 maxPeriods = periodStructure.maxPeriods;
 
                 weeklyData.forEach(row => {
@@ -2048,7 +2048,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
             } else {
                 // formatA (컴시간 양식) 처리
                 const totalCells = weeklyData.length > 0 && weeklyData[0].length > 1 ? weeklyData[0].length - 1 : 33;
-                const periodStructure = calculatePeriodStructure(totalCells);
+                const periodStructure = calculatePeriodStructure(totalCells, weeklyData);
                 console.log('[WEEKLY formatA] Period structure:', periodStructure);
                 
                 weeklyData.forEach((row, rowIndex) => {
@@ -2221,7 +2221,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
             let periodStructure = null;
             if (data.length > 0 && data[0].length > 1) {
                 const totalCells = data[0].length - 1;
-                periodStructure = calculatePeriodStructure(totalCells);
+                periodStructure = calculatePeriodStructure(totalCells, weeklyData);
             }
             
             if (!periodStructure) {
@@ -2258,8 +2258,73 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
             return teachers;
         }
         
-        function calculatePeriodStructure(totalCells) {
+        function calculatePeriodStructure(totalCells, weeklyRaw = null) {
+            // 실제 엑셀 데이터가 있다면 2행과 3행을 분석해서 정확한 교시 구조를 파악
+            if (weeklyRaw && weeklyRaw.length >= 3) {
+                try {
+                    const daysInOrder = ['월', '화', '수', '목', '금'];
+                    const row2 = weeklyRaw[1] || []; // 2행 (0-indexed이므로 index 1)
+                    const row3 = weeklyRaw[2] || []; // 3행 (0-indexed이므로 index 2)
+                    
+                    // 2행에서 요일 시작 위치 찾기
+                    const dayStartCols = {};
+                    for (let col = 0; col < row2.length; col++) {
+                        const cellValue = row2[col];
+                        if (cellValue && daysInOrder.includes(String(cellValue).trim())) {
+                            dayStartCols[String(cellValue).trim()] = col;
+                        }
+                    }
+                    
+                    console.log('감지된 요일 시작 위치:', dayStartCols);
+                    
+                    // 각 요일별 교시 수 계산
+                    const periodCounts = [];
+                    for (let i = 0; i < daysInOrder.length; i++) {
+                        const currentDay = daysInOrder[i];
+                        if (currentDay in dayStartCols) {
+                            const startCol = dayStartCols[currentDay];
+                            let endCol;
+                            
+                            // 다음 요일 찾기
+                            if (i < daysInOrder.length - 1) {
+                                const nextDay = daysInOrder[i + 1];
+                                if (nextDay in dayStartCols) {
+                                    endCol = dayStartCols[nextDay] - 1;
+                                } else {
+                                    // 다음 요일이 없으면 전체 길이에서 1을 뺀 값
+                                    endCol = row2.length - 1;
+                                }
+                            } else {
+                                // 마지막 요일인 경우
+                                endCol = row2.length - 1;
+                            }
+                            
+                            const periodCount = endCol - startCol + 1;
+                            periodCounts.push(periodCount);
+                            console.log(currentDay + '요일: 열 ' + startCol + '~' + endCol + ' = ' + periodCount + '교시');
+                        } else {
+                            periodCounts.push(0);
+                        }
+                    }
+                    
+                    const totalCalculated = periodCounts.reduce((a, b) => a + b, 0);
+                    console.log('계산된 교시 패턴:', periodCounts, '총합:', totalCalculated);
+                    
+                    // 계산된 총합이 실제 데이터 길이와 일치하거나 비슷하면 사용
+                    if (totalCalculated > 0 && Math.abs(totalCalculated - totalCells) <= 2) {
+                        return {
+                            periodCounts: periodCounts,
+                            maxPeriods: Math.max(...periodCounts)
+                        };
+                    }
+                } catch (error) {
+                    console.warn('엑셀 헤더 분석 중 오류:', error);
+                }
+            }
+            
+            // 기존 로직: 미리 정의된 패턴 사용
             const commonPatterns = [
+                [7, 7, 6, 7, 6], // 새로운 패턴 추가
                 [7, 7, 7, 6, 6], // 33교시 - 가장 일반적
                 [6, 6, 6, 6, 6], // 30교시
                 [7, 7, 7, 7, 7], // 35교시  

@@ -1,0 +1,1616 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>시간표 조회 HTML 생성기</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f2f5;
+        }
+        #app-container {
+            width: 100%;
+            max-width: 600px;
+            background-color: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        #upload-box {
+            border: 2px dashed #007bff;
+            border-radius: 10px;
+            padding: 40px 20px;
+            margin-bottom: 30px;
+            background-color: #f8f9fa;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #upload-box:hover {
+            background-color: #e9ecef;
+        }
+        #upload-box p {
+            margin: 0;
+            font-size: 18px;
+            color: #555;
+        }
+        #file-input {
+            display: none;
+        }
+        .option-group {
+            margin: 20px 0;
+            text-align: left;
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        .option-group h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+            font-size: 16px;
+            text-align: center;
+        }
+        .option-item {
+            margin: 12px 0;
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+        }
+        .option-item input[type="checkbox"] {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+        .option-item label {
+            cursor: pointer;
+            color: #555;
+        }
+
+        /* 색상 테마 선택 섹션 */
+        .theme-section {
+            margin: 20px 0;
+            background-color: #f3e5f5;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #ce93d8;
+        }
+        .theme-section h3 {
+            margin: 0 0 15px 0;
+            color: #7b1fa2;
+            font-size: 16px;
+            text-align: center;
+        }
+        .theme-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .theme-selector label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        .theme-selector select {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 14px;
+            background-color: white;
+            cursor: pointer;
+        }
+        .theme-preview {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .theme-color {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 2px solid #ddd;
+            display: inline-block;
+        }
+
+        /* 로고 업로드 섹션 */
+        .logo-upload-section {
+            margin: 20px 0;
+            background-color: #f0f7ff;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #cce7ff;
+        }
+        .logo-upload-section h3 {
+            margin: 0 0 15px 0;
+            color: #1976d2;
+            font-size: 16px;
+            text-align: center;
+        }
+        .logo-upload-box {
+            border: 2px dashed #2196f3;
+            border-radius: 10px;
+            padding: 20px;
+            background-color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        .logo-upload-box:hover {
+            background-color: #f8f9ff;
+            border-color: #1976d2;
+        }
+        .logo-upload-box.uploaded {
+            border-color: #4CAF50;
+            background-color: #f1f8e9;
+            border-style: solid;
+        }
+        .logo-preview-container {
+            display: none;
+            margin-bottom: 15px;
+        }
+        .logo-preview-container img {
+            max-width: 100px;
+            max-height: 100px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .logo-preview-container p {
+            margin: 8px 0 0 0;
+            font-size: 12px;
+            color: #666;
+        }
+        .logo-upload-text {
+            font-size: 14px;
+            color: #666;
+            margin: 5px 0;
+        }
+        #logo-file-input {
+            display: none;
+        }
+
+        /* 제목 입력 섹션 */
+        .title-input-section {
+            margin: 20px 0;
+            text-align: left;
+            background-color: #fff8e1;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #ffcc02;
+        }
+        .title-input-section h3 {
+            margin: 0 0 15px 0;
+            color: #f57c00;
+            font-size: 16px;
+            text-align: center;
+        }
+        .title-input-section label {
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: block;
+            color: #333;
+        }
+        .title-input-section input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        #generate-button {
+            display: none; /* 초반에는 숨김 */
+            width: 100%;
+            padding: 15px;
+            border: none;
+            background: linear-gradient(45deg, #28a745, #218838);
+            color: white;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-top: 15px;
+        }
+        #generate-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(40, 167, 69, 0.4);
+        }
+        #status {
+            margin-top: 20px;
+            font-size: 16px;
+            color: #6c757d;
+        }
+
+        /* 모바일 반응형 */
+        @media (max-width: 768px) {
+            body { 
+                padding: 10px; 
+                align-items: flex-start;
+            }
+            #app-container { 
+                padding: 20px; 
+                margin: 10px auto;
+                max-width: 100%;
+            }
+            h1 { 
+                font-size: 1.5em; 
+                margin-bottom: 20px;
+            }
+            #upload-box { 
+                padding: 30px 15px; 
+            }
+            #upload-box p { 
+                font-size: 16px; 
+            }
+            .option-group, 
+            .theme-section,
+            .logo-upload-section, 
+            .title-input-section { 
+                padding: 15px; 
+                margin: 15px 0;
+            }
+            .option-item { 
+                font-size: 13px; 
+            }
+            .logo-upload-box { 
+                padding: 15px; 
+            }
+            .logo-upload-text { 
+                font-size: 13px; 
+            }
+            .title-input-section input {
+                font-size: 16px; /* iOS 줌 방지 */
+            }
+        }
+
+        @media (max-width: 480px) {
+            #app-container { 
+                padding: 15px; 
+            }
+            h1 { 
+                font-size: 1.3em; 
+            }
+            .option-group h3,
+            .theme-section h3,
+            .logo-upload-section h3,
+            .title-input-section h3 { 
+                font-size: 14px; 
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        <h1>교사용 시간표 조회 HTML 생성기 🚀</h1>
+
+        <div id="upload-box">
+            <p>주간시간표 파일 업로드<br> 여기를 클릭하거나 <br>엑셀 파일 드래그하여 끌어다 놓으세요.</p>
+        </div>
+        <input type="file" id="file-input" accept=".xlsx, .xls">
+
+        <p id="status">파일을 업로드하면 생성 버튼이 나타납니다.</p>
+
+        <div class="option-group" id="options-group" style="display: none;">
+            <h3>📋 표시 옵션 설정</h3>
+            <div class="option-item" id="coloring-option-item" style="display: none;">
+                <input type="checkbox" id="enable-coloring" name="enable-coloring" checked>
+                <label for="enable-coloring">선택반(예: A_수업)을 색상과 기호로 구분하기</label>
+            </div>
+            <div class="option-item" id="formatb-coloring-option-item" style="display: none;">
+                <input type="checkbox" id="enable-formatb-coloring" name="enable-formatb-coloring" checked>
+                <label for="enable-formatb-coloring">선택과목을 색상과 기호로 구분하기 (예: A고전읽기, English → A반, E반으로 표시)</label>
+            </div>
+            <div class="option-item">
+                <input type="checkbox" id="enable-line-break" name="enable-line-break" checked>
+                <label for="enable-line-break">수업장소와 수업명을 줄바꿈으로 표시하기 (예: 105 A_확통 → 105<br>A_확통)</label>
+            </div>
+            <div class="option-item">
+                <input type="checkbox" id="enable-location-chip" name="enable-location-chip" checked>
+                <label for="enable-location-chip">수업장소를 칩 형태로 표시하기 (반마다 다른 색상)</label>
+            </div>
+        </div>
+
+        <div class="theme-section" id="theme-section" style="display: none;">
+            <h3>🎨 색상 테마 선택</h3>
+            <div class="theme-selector">
+                <label for="color-theme">테마를 선택하세요:</label>
+                <select id="color-theme">
+                    <option value="default">기본 (블루)</option>
+                    <option value="dark">다크 (검정/회색)</option>
+                    <option value="green">그린 (자연)</option>
+                    <option value="purple">퍼플 (보라)</option>
+                    <option value="orange">오렌지 (따뜻함)</option>
+                    <option value="teal">틸 (바다)</option>
+                </select>
+                <div class="theme-preview" id="theme-preview">
+                    <span class="theme-color" style="background-color: #5A67D8;" title="기본색"></span>
+                    <span class="theme-color" style="background-color: #7f8ff0;" title="강조색"></span>
+                    <span class="theme-color" style="background-color: #F7FAFC;" title="배경색"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="title-input-section" id="title-section" style="display: none;">
+            <h3>📝 페이지 제목 설정</h3>
+            <label for="page-title">생성될 시간표 페이지 제목:</label>
+            <input type="text" id="page-title" placeholder="예: OOO고등학교 2025년 1학기 교사 시간표">
+        </div>
+
+        <div class="logo-upload-section" id="logo-section" style="display: none;">
+            <h3>🏫 학교 로고 업로드 (선택)</h3>
+            <div class="logo-upload-box" id="logo-upload-box">
+                <div class="logo-preview-container" id="logo-preview-container">
+                    <img id="logo-preview" alt="로고 미리보기">
+                    <p>업로드된 로고</p>
+                </div>
+                <div class="logo-upload-text">이미지 파일을 선택하거나 끌어다 놓으세요</div>
+                <div class="logo-upload-text" style="font-size: 12px; color: #999;">PNG, JPG, GIF 등 지원</div>
+            </div>
+            <input type="file" id="logo-file-input" accept="image/*">
+        </div>
+
+        <button id="generate-button">결과 HTML 파일 생성 및 다운로드</button>
+    </div>
+
+<script>
+    const uploadBox = document.getElementById('upload-box');
+    const fileInput = document.getElementById('file-input');
+    const generateButton = document.getElementById('generate-button');
+    const statusP = document.getElementById('status');
+    const optionsGroup = document.getElementById('options-group');
+    const coloringOptionItem = document.getElementById('coloring-option-item');
+    const formatbColoringOptionItem = document.getElementById('formatb-coloring-option-item');
+    const themeSection = document.getElementById('theme-section');
+    const titleSection = document.getElementById('title-section');
+    const logoSection = document.getElementById('logo-section');
+    const logoUploadBox = document.getElementById('logo-upload-box');
+    const logoFileInput = document.getElementById('logo-file-input');
+    const logoPreviewContainer = document.getElementById('logo-preview-container');
+    const logoPreview = document.getElementById('logo-preview');
+    const colorThemeSelect = document.getElementById('color-theme');
+    const themePreview = document.getElementById('theme-preview');
+    
+    let timetableData = null;
+    let logoBase64 = null;
+
+    // 테마 색상 정의
+    const themes = {
+        default: {
+            primary: '#5A67D8',
+            primaryLight: '#7f8ff0',
+            background: '#F7FAFC',
+            cardBackground: '#FFFFFF',
+            textColor: '#2D3748',
+            subtleText: '#718096',
+            borderColor: '#E2E8F0'
+        },
+        dark: {
+            primary: '#4A5568',
+            primaryLight: '#718096',
+            background: '#1A202C',
+            cardBackground: '#2D3748',
+            textColor: '#E2E8F0',
+            subtleText: '#A0AEC0',
+            borderColor: '#4A5568'
+        },
+        green: {
+            primary: '#38A169',
+            primaryLight: '#68D391',
+            background: '#F0FFF4',
+            cardBackground: '#FFFFFF',
+            textColor: '#1A202C',
+            subtleText: '#4A5568',
+            borderColor: '#C6F6D5'
+        },
+        purple: {
+            primary: '#805AD5',
+            primaryLight: '#B794F6',
+            background: '#FAF5FF',
+            cardBackground: '#FFFFFF',
+            textColor: '#1A202C',
+            subtleText: '#4A5568',
+            borderColor: '#E9D8FD'
+        },
+        orange: {
+            primary: '#DD6B20',
+            primaryLight: '#F6AD55',
+            background: '#FFFAF0',
+            cardBackground: '#FFFFFF',
+            textColor: '#1A202C',
+            subtleText: '#4A5568',
+            borderColor: '#FBD38D'
+        },
+        teal: {
+            primary: '#319795',
+            primaryLight: '#4FD1C7',
+            background: '#E6FFFA',
+            cardBackground: '#FFFFFF',
+            textColor: '#1A202C',
+            subtleText: '#4A5568',
+            borderColor: '#B2F5EA'
+        }
+    };
+
+    // --- 이벤트 리스너 설정 ---
+    uploadBox.addEventListener('click', () => fileInput.click());
+    
+    uploadBox.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadBox.style.backgroundColor = '#e9ecef';
+    });
+    uploadBox.addEventListener('dragleave', () => {
+        uploadBox.style.backgroundColor = '#f8f9fa';
+    });
+    uploadBox.addEventListener('drop', (e) => {
+        e.preventDefault();
+        fileInput.files = e.dataTransfer.files;
+        handleFileSelect(fileInput.files[0]);
+    });
+
+    fileInput.addEventListener('change', (e) => handleFileSelect(e.target.files[0]));
+    generateButton.addEventListener('click', generateAndDownloadHtml);
+    
+    // 테마 선택 이벤트
+    colorThemeSelect.addEventListener('change', updateThemePreview);
+    
+    // 로고 업로드 이벤트
+    logoUploadBox.addEventListener('click', () => logoFileInput.click());
+    logoUploadBox.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        logoUploadBox.style.backgroundColor = '#f0f7ff';
+    });
+    logoUploadBox.addEventListener('dragleave', () => {
+        logoUploadBox.style.backgroundColor = 'white';
+    });
+    logoUploadBox.addEventListener('drop', (e) => {
+        e.preventDefault();
+        logoUploadBox.style.backgroundColor = 'white';
+        handleLogoSelect(e.dataTransfer.files[0]);
+    });
+    logoFileInput.addEventListener('change', (e) => handleLogoSelect(e.target.files[0]));
+    
+    // --- 함수 정의 ---
+
+    function detectTimetableFormat(data) {
+        // Format B 감지: 3행에 "번호", "교사" 등이 있고, 4행에 숫자가 있는 경우
+        if (data.length >= 4) {
+            const row3 = data[2] || []; // 3행 (0-based index 2)
+            const row4 = data[3] || []; // 4행 (0-based index 3)
+            
+            // Format B의 특징: 3행에 "번호", "교사", 요일명이 있음
+            if (row3.includes('번호') && row3.includes('교사') && 
+                (row3.includes('월') || row3.includes('화'))) {
+                return 'formatB';
+            }
+        }
+        
+        // 기본값은 Format A
+        return 'formatA';
+    }
+
+    function handleFileSelect(file) {
+        if (!file) return;
+
+        statusP.textContent = `✅ 파일 선택됨: ${file.name}`;
+        statusP.style.color = '#28a745';
+        generateButton.style.display = 'block';
+        optionsGroup.style.display = 'block';
+        themeSection.style.display = 'block';
+        titleSection.style.display = 'block';
+        logoSection.style.display = 'block';
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            
+            // 양식 유형에 따라 다른 범위로 데이터 읽기
+            let jsonData;
+            const previewData = XLSX.utils.sheet_to_json(worksheet, { header: 1, range: 'A1:Z10' });
+            const formatType = detectTimetableFormat(previewData);
+            
+            if (formatType === 'formatB') {
+                // Format B: 전체 데이터 읽기 (헤더 포함)
+                jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            } else {
+                // Format A: 3행부터 데이터 읽기
+                jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, range: 2 });
+            }
+            
+            timetableData = parseTimetable(jsonData);
+            // 포맷 정보 저장
+            timetableData.formatType = formatType;
+
+            // 교시 구조 정보 표시
+            if (timetableData.length > 0) {
+                const structure = timetableData[0];
+                const maxPeriods = structure.maxPeriods;
+                const periodCounts = structure.periodCounts;
+                const formatName = formatType === 'formatB' ? '압핀 양식' : '컴시간알리미 양식';
+                const totalTeachers = timetableData.length;
+                
+                statusP.innerHTML = `✅ 파일 분석 완료: ${file.name}<br><small style="color: #6c757d;">${formatName}으로 감지되었습니다 | 교사 ${totalTeachers}명 | 교시 구조: 월(${periodCounts[0]}) 화(${periodCounts[1]}) 수(${periodCounts[2]}) 목(${periodCounts[3]}) 금(${periodCounts[4]}) - 최대 ${maxPeriods}교시</small>`;
+            }
+
+            // 선택반/선택과목 형식이 있는지 확인하고 옵션 표시
+            if (formatType === 'formatB') {
+                // FormatB용 옵션들 표시
+                if (checkForSpecialClassesFormatB(timetableData)) {
+                    formatbColoringOptionItem.style.display = 'flex';
+                } else {
+                    formatbColoringOptionItem.style.display = 'none';
+                }
+                coloringOptionItem.style.display = 'none';
+            } else {
+                // FormatA용 옵션 표시
+                if (checkForSpecialClassesFormatA(timetableData)) {
+                    coloringOptionItem.style.display = 'flex';
+                } else {
+                    coloringOptionItem.style.display = 'none';
+                }
+                formatbColoringOptionItem.style.display = 'none';
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+    
+    function handleLogoSelect(file) {
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            logoBase64 = e.target.result;
+            logoPreview.src = logoBase64;
+            logoPreviewContainer.style.display = 'block';
+            logoUploadBox.classList.add('uploaded');
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function updateThemePreview() {
+        const selectedTheme = colorThemeSelect.value;
+        const theme = themes[selectedTheme];
+        
+        themePreview.innerHTML = `
+            <span class="theme-color" style="background-color: ${theme.primary};" title="기본색"></span>
+            <span class="theme-color" style="background-color: ${theme.primaryLight};" title="강조색"></span>
+            <span class="theme-color" style="background-color: ${theme.background};" title="배경색"></span>
+        `;
+    }
+    
+    function parseTimetable(data) {
+        // 양식 유형 자동 감지
+        const formatType = detectTimetableFormat(data);
+        
+        if (formatType === 'formatB') {
+            return parseTimetableFormatB(data);
+        } else {
+            return parseTimetableFormatA(data);
+        }
+    }
+
+    function parseTimetableFormatA(data) {
+        const teachers = [];
+        
+        // 첫 번째 교사의 데이터로 요일별 교시 수 구조 파악
+        let periodStructure = null;
+        if (data.length > 0 && data[0].length > 1) {
+            const totalCells = data[0].length - 1; // 교사명 제외
+            periodStructure = calculatePeriodStructure(totalCells);
+        }
+        
+        if (!periodStructure) {
+            // 기본값으로 폴백
+            periodStructure = {
+                periodCounts: [7, 7, 7, 6, 6],
+                maxPeriods: 7
+            };
+        }
+        
+        data.forEach(row => {
+            if (!row[0]) return; 
+
+            const teacherName = row[0].replace(/\(\d+\)/, '').trim();
+            const scheduleData = row.slice(1);
+            
+            const schedule = {};
+            let currentIndex = 0;
+            const daysInOrder = ['월', '화', '수', '목', '금'];
+
+            for (let i = 0; i < daysInOrder.length && i < periodStructure.periodCounts.length; i++) {
+                const day = daysInOrder[i];
+                const count = periodStructure.periodCounts[i];
+                schedule[day] = scheduleData.slice(currentIndex, currentIndex + count).map(cell => cell || '');
+                currentIndex += count;
+            }
+            
+            // 교사 데이터에 교시 구조 정보 포함
+            teachers.push({ 
+                name: teacherName, 
+                schedule: schedule,
+                maxPeriods: periodStructure.maxPeriods,
+                periodCounts: periodStructure.periodCounts
+            });
+        });
+        return teachers;
+    }
+
+    function parseTimetableFormatB(data) {
+        const teachers = [];
+        
+        // 헤더 분석 (3행: 요일, 4행: 교시)
+        const dayHeaders = data[2] || [];
+        const periodHeaders = data[3] || [];
+        
+        // 요일별 컬럼 범위 분석
+        let dayRanges = {};
+        let currentDay = '';
+        
+        for (let i = 2; i < dayHeaders.length; i++) { // 2번째 컬럼부터 (0:번호, 1:교사)
+            if (dayHeaders[i] && dayHeaders[i] !== null && dayHeaders[i] !== '') {
+                if (currentDay && dayRanges[currentDay]) {
+                    dayRanges[currentDay].end = i - 1;
+                }
+                
+                currentDay = dayHeaders[i];
+                if (currentDay === '월' || currentDay === '화' || currentDay === '수' || 
+                    currentDay === '목' || currentDay === '금') {
+                    dayRanges[currentDay] = { start: i, periods: [] };
+                }
+            }
+            
+            if (currentDay && dayRanges[currentDay] && 
+                periodHeaders[i] && periodHeaders[i] !== null && periodHeaders[i] !== '') {
+                const periodNum = parseInt(periodHeaders[i]);
+                if (!isNaN(periodNum)) {
+                    dayRanges[currentDay].periods.push({
+                        period: periodNum,
+                        column: i
+                    });
+                }
+            }
+        }
+        
+        // 교시 구조 계산
+        const daysInOrder = ['월', '화', '수', '목', '금'];
+        const periodCounts = daysInOrder.map(day => 
+            dayRanges[day] ? dayRanges[day].periods.length : 0
+        );
+        const maxPeriods = Math.max(...periodCounts, 0);
+        
+        // 실제 데이터 시작점 찾기 (4행부터 교사명이 있는 행을 찾음)
+        let dataStartIndex = 4; // 5행부터 시작 (0-based index 4)
+        
+        // 데이터 파싱 - 교사명이 있는 행을 찾아서 처리
+        for (let i = dataStartIndex; i < data.length; i++) {
+            const currentRow = data[i];
+            
+            // 교사명이 있는 행인지 확인 (1번 컬럼에 교사명이 있어야 함)
+            if (!currentRow || !currentRow[1]) continue;
+            
+            const teacherName = currentRow[1].toString().trim();
+            if (!teacherName) continue;
+            
+            // 교사명이 숫자로만 이루어져 있으면 스킵 (번호일 가능성)
+            if (/^\d+$/.test(teacherName)) continue;
+            
+            // 현재 행이 과목 행인지 장소 행인지 확인
+            // 다음 행을 확인해서 교사명이 같으면 현재 행은 과목, 다음 행은 장소
+            const nextRow = data[i + 1];
+            let subjectRow = currentRow;
+            let locationRow = null;
+            
+            if (nextRow && nextRow[1] && nextRow[1].toString().trim() === teacherName) {
+                // 다음 행도 같은 교사명 -> 현재 행은 과목, 다음 행은 장소
+                locationRow = nextRow;
+                i++; // 다음 행도 처리했으므로 인덱스 증가
+            } else if (nextRow && (!nextRow[1] || nextRow[1].toString().trim() === '')) {
+                // 다음 행에 교사명이 없음 -> 다음 행이 장소일 가능성
+                locationRow = nextRow;
+                i++; // 다음 행도 처리했으므로 인덱스 증가
+            }
+            // 그 외의 경우는 현재 행이 과목과 장소가 합쳐진 형태
+            
+            const schedule = {};
+            
+            daysInOrder.forEach(day => {
+                if (dayRanges[day]) {
+                    const daySchedule = [];
+                    
+                    dayRanges[day].periods.forEach(periodInfo => {
+                        const subject = subjectRow[periodInfo.column];
+                        const location = locationRow ? locationRow[periodInfo.column] : '';
+                        
+                        let combined = '';
+                        if (location && subject) {
+                            combined = `${location} ${subject}`;
+                        } else if (subject) {
+                            combined = subject.toString();
+                        } else if (location) {
+                            combined = location.toString();
+                        }
+                        
+                        daySchedule.push(combined);
+                    });
+                    
+                    // 빈 슬롯으로 최대 교시 수만큼 채우기
+                    while (daySchedule.length < maxPeriods) {
+                        daySchedule.push('');
+                    }
+                    
+                    schedule[day] = daySchedule;
+                } else {
+                    // 해당 요일 정보가 없으면 빈 배열
+                    schedule[day] = new Array(maxPeriods).fill('');
+                }
+            });
+            
+            teachers.push({
+                name: teacherName,
+                schedule: schedule,
+                maxPeriods: maxPeriods,
+                periodCounts: periodCounts
+            });
+        }
+        
+        return teachers;
+    }
+
+    function calculatePeriodStructure(totalCells) {
+        // 일반적인 학교 시간표 패턴들을 시도해봄
+        const commonPatterns = [
+            // 패턴: [월, 화, 수, 목, 금] 교시 수
+            [7, 7, 7, 6, 6], // 33교시 - 가장 일반적
+            [6, 6, 6, 6, 6], // 30교시
+            [7, 7, 7, 7, 7], // 35교시  
+            [8, 8, 8, 6, 6], // 36교시
+            [8, 8, 8, 7, 7], // 38교시
+            [8, 8, 8, 8, 8], // 40교시
+            [5, 5, 5, 5, 5], // 25교시 - 초등학교 등
+            [6, 6, 6, 5, 5], // 28교시
+            [7, 7, 7, 5, 5]  // 31교시
+        ];
+        
+        // 총 셀 수와 일치하는 패턴 찾기
+        for (const pattern of commonPatterns) {
+            const sum = pattern.reduce((a, b) => a + b, 0);
+            if (sum === totalCells) {
+                return {
+                    periodCounts: pattern,
+                    maxPeriods: Math.max(...pattern)
+                };
+            }
+        }
+        
+        // 패턴이 없으면 균등 분할 시도
+        if (totalCells % 5 === 0) {
+            const periodsPerDay = totalCells / 5;
+            return {
+                periodCounts: [periodsPerDay, periodsPerDay, periodsPerDay, periodsPerDay, periodsPerDay],
+                maxPeriods: periodsPerDay
+            };
+        }
+        
+        // 그 외의 경우 추정 로직
+        return estimatePeriodStructure(totalCells);
+    }
+    
+    function estimatePeriodStructure(totalCells) {
+        // 경험적 추정: 월~수는 긴 수업, 목~금은 짧은 수업이 일반적
+        let bestPattern = [7, 7, 7, 6, 6]; // 기본값
+        let minDiff = Math.abs(33 - totalCells);
+        
+        for (let longDays = 5; longDays <= 8; longDays++) {
+            for (let shortDaysReduction = 0; shortDaysReduction <= 3; shortDaysReduction++) {
+                const shortDays = longDays - shortDaysReduction;
+                const pattern = [longDays, longDays, longDays, shortDays, shortDays];
+                const sum = pattern.reduce((a, b) => a + b, 0);
+                const diff = Math.abs(sum - totalCells);
+                
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    bestPattern = pattern;
+                }
+            }
+        }
+        
+        return {
+            periodCounts: bestPattern,
+            maxPeriods: Math.max(...bestPattern)
+        };
+    }
+
+    function checkForSpecialClassesFormatA(data) {
+        const pattern = /[A-Z]_/;
+        for (const teacher of data) {
+            for (const day in teacher.schedule) {
+                for (const subject of teacher.schedule[day]) {
+                    if (subject && pattern.test(subject)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    function checkForSpecialClassesFormatB(data) {
+        // FormatB의 선택과목 패턴: 알파벳으로 시작하는 과목명 (한글 또는 영어)
+        const koreanPattern = /([A-Z])\s?([가-힣])/; // G화학, A 고전읽기 등
+        const englishPattern = /([A-Z])[a-z]+/; // English, Biology 등
+        
+        for (const teacher of data) {
+            for (const day in teacher.schedule) {
+                for (const subject of teacher.schedule[day]) {
+                    if (subject && (koreanPattern.test(subject) || englishPattern.test(subject))) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    function generateAndDownloadHtml() {
+        if (!timetableData) {
+            alert("먼저 엑셀 파일을 업로드해주세요.");
+            return;
+        }
+
+        const isColoringEnabled = document.getElementById('enable-coloring').checked && coloringOptionItem.style.display !== 'none';
+        const isFormatBColoringEnabled = document.getElementById('enable-formatb-coloring').checked && formatbColoringOptionItem.style.display !== 'none';
+        const isLineBreakEnabled = document.getElementById('enable-line-break').checked;
+        const isLocationChipEnabled = document.getElementById('enable-location-chip').checked;
+        const pageTitle = document.getElementById('page-title').value.trim() || '개인별 주간 시간표';
+        const selectedTheme = colorThemeSelect.value;
+        const dataString = JSON.stringify(timetableData);
+        const finalHtml = getHtmlTemplate(dataString, isColoringEnabled, isFormatBColoringEnabled, isLineBreakEnabled, isLocationChipEnabled, pageTitle, logoBase64, selectedTheme);
+        
+        const blob = new Blob([finalHtml], { type: 'text/html;charset=utf-8' });
+        
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'teacher_timetable_visual.html';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        statusP.textContent = '다운로드가 완료되었습니다!';
+    }
+    
+    function getHtmlTemplate(dataJsonString, isColoringEnabled, isFormatBColoringEnabled, isLineBreakEnabled, isLocationChipEnabled, pageTitle, iconBase64, themeName) {
+        const theme = themes[themeName];
+        
+        return `
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${pageTitle}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: ${theme.primary};
+            --primary-light: ${theme.primaryLight};
+            --background-color: ${theme.background};
+            --card-background: ${theme.cardBackground};
+            --text-color: ${theme.textColor};
+            --subtle-text: ${theme.subtleText};
+            --border-color: ${theme.borderColor};
+        }
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Noto Sans KR', sans-serif;
+            margin: 0; 
+            padding: 20px; 
+            background-color: var(--background-color);
+            color: var(--text-color);
+            min-height: 100vh;
+        }
+        #app-container { 
+            max-width: 1100px; 
+            margin: 20px auto; 
+            background-color: var(--card-background); 
+            padding: 40px; 
+            border-radius: 16px; 
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        h1 { 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-color); 
+            margin-bottom: 30px; 
+            text-align: center; 
+            font-size: 2em;
+            font-weight: 700;
+        }
+        .title-icon { 
+            height: 2.5em; 
+            margin-right: 15px; 
+            border-radius: 8px; 
+            max-width: 150px; 
+            object-fit: contain;
+        }
+        #search-section { 
+            background: ${themeName === 'dark' ? '#4A5568' : '#f8f9fa'};
+            padding: 25px; 
+            border-radius: 12px; 
+            margin-bottom: 30px; 
+        }
+        .search-container { position: relative; max-width: 500px; margin: 0 auto; }
+        #teacher-search { 
+            width: 100%; 
+            padding: 15px 20px 15px 50px; 
+            border: 1px solid var(--border-color); 
+            border-radius: 12px; 
+            font-size: 16px; 
+            background-color: var(--card-background); 
+            color: var(--text-color);
+            transition: all 0.2s ease; 
+            outline: none; 
+            box-sizing: border-box;
+        }
+        #teacher-search:focus { 
+            border-color: var(--primary-color); 
+            box-shadow: 0 0 0 3px rgba(90, 103, 216, 0.3);
+        }
+        .search-icon { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--subtle-text); font-size: 20px; }
+        .autocomplete-dropdown { position: absolute; top: calc(100% + 5px); left: 0; right: 0; background: var(--card-background); border: 1px solid var(--border-color); border-radius: 12px; max-height: 200px; overflow-y: auto; z-index: 1000; display: none; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        .autocomplete-item { padding: 12px 20px; cursor: pointer; border-bottom: 1px solid var(--border-color); transition: background-color 0.2s; color: var(--text-color); }
+        .autocomplete-item:hover, .autocomplete-item.selected { background-color: var(--primary-light); color: white; }
+        .autocomplete-item:last-child { border-bottom: none; }
+        .favorites-section { margin-top: 20px; text-align: center; }
+        .favorites-title { font-size: 14px; color: var(--subtle-text); margin-bottom: 12px; }
+        .favorite-chips { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+        .favorite-chip { background: var(--border-color); color: var(--text-color); padding: 8px 14px; border-radius: 20px; font-size: 14px; cursor: pointer; transition: all 0.2s; border: none; font-weight: 500; }
+        .favorite-chip:hover { background: var(--primary-color); color: white; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .search-stats { text-align: center; margin: 15px 0; color: var(--subtle-text); font-size: 14px; }
+        
+        .schedule-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 10px 0; }
+        .teacher-info h2 { margin: 0; color: var(--text-color); font-size: 1.8em; font-weight: 700;}
+        .teacher-actions { display: flex; gap: 10px; }
+        .action-btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border: 1px solid var(--border-color); background: var(--card-background); color: var(--subtle-text); border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s; }
+        .action-btn:hover { background: ${themeName === 'dark' ? '#4A5568' : '#f8f9fa'}; color: var(--text-color); border-color: var(--border-color);}
+        .action-btn.favorited { background: #FFC107; border-color: #FFC107; color: white; }
+        
+        /* 테이블 컨테이너 추가 */
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 20px 0; font-size: 15px; table-layout: fixed; }
+        th, td { border-bottom: 1px solid var(--border-color); padding: 18px 10px; text-align: center; vertical-align: middle; transition: background-color 0.3s; word-wrap: break-word; }
+        th:first-child, td:first-child { width: 15%; }
+        th:not(:first-child), td:not(:first-child) { width: 17%; }
+        thead th { color: var(--subtle-text); font-weight: 500; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid var(--border-color); background-color: var(--card-background); }
+        td:first-child { font-weight: 500; color: var(--text-color); background-color: ${themeName === 'dark' ? '#2D3748' : '#F7FAFC'}; }
+        
+        /* 테이블 테두리 스타일 개선 */
+        tbody tr td:first-child { border-left: 1px solid var(--border-color);}
+        tbody tr:first-child td { border-top: 1px solid var(--border-color); }
+        tbody td { border-right: 1px solid var(--border-color); background-color: var(--card-background); }
+        
+        /* 선택반 태그 스타일 */
+        .subject-tag {
+            display: inline-block;
+            width: 22px;
+            height: 22px;
+            line-height: 22px;
+            text-align: center;
+            border-radius: 50%;
+            color: white;
+            font-weight: 700;
+            font-size: 12px;
+            margin-right: 8px;
+            vertical-align: middle;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* 수업장소 칩 스타일 */
+        .location-chip {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            color: white;
+            margin-right: 6px;
+            margin-bottom: 2px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .empty-state { text-align: center; padding: 80px 20px; }
+        .empty-state-icon { font-size: 5em; margin-bottom: 20px; opacity: 0.5; color: var(--primary-color); }
+        .empty-state h3 { font-size: 1.5em; font-weight: 500; color: var(--text-color); }
+        .empty-state p { color: var(--subtle-text); }
+
+        /* 모바일 반응형 디자인 */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            #app-container { 
+                padding: 20px; 
+                margin: 10px auto; 
+                border-radius: 12px;
+            }
+            h1 { 
+                font-size: 1.5em; 
+                margin-bottom: 20px;
+                flex-direction: column;
+                gap: 10px;
+            }
+            .title-icon { 
+                margin-right: 0; 
+                margin-bottom: 5px;
+                height: 2em;
+                max-width: 120px;
+            }
+            
+            /* 검색 섹션 모바일 최적화 */
+            #search-section { 
+                padding: 20px 15px; 
+                margin-bottom: 20px;
+            }
+            .search-container { 
+                max-width: 100%; 
+            }
+            #teacher-search { 
+                width: 100%;
+                padding: 12px 15px 12px 45px; 
+                font-size: 16px; /* iOS 줌 방지 */
+                border-radius: 8px;
+                box-sizing: border-box;
+            }
+            .search-icon { 
+                left: 15px; 
+            }
+            
+            /* 즐겨찾기 칩 모바일 최적화 */
+            .favorite-chips { 
+                gap: 8px; 
+                justify-content: flex-start;
+                flex-wrap: wrap;
+            }
+            .favorite-chip { 
+                padding: 6px 12px; 
+                font-size: 13px;
+                white-space: nowrap;
+            }
+            
+            /* 스케줄 헤더 모바일 최적화 */
+            .schedule-header { 
+                flex-direction: column; 
+                gap: 15px; 
+                align-items: flex-start;
+                margin-bottom: 15px;
+            }
+            .teacher-info h2 { 
+                font-size: 1.4em; 
+                text-align: center;
+                width: 100%;
+            }
+            .teacher-actions { 
+                width: 100%; 
+                display: flex; 
+                gap: 10px;
+                flex-wrap: wrap;
+            }
+            .action-btn { 
+                flex: 1; 
+                min-width: 120px;
+                padding: 10px 12px;
+                font-size: 14px;
+                justify-content: center;
+            }
+            
+            /* 테이블 모바일 최적화 */
+            table { 
+                font-size: 12px; 
+                border-radius: 8px;
+                overflow: hidden;
+            }
+            th, td { 
+                padding: 8px 4px; 
+                line-height: 1.3;
+            }
+            td { 
+                height: 50px; 
+                min-height: 50px;
+            }
+            td small { 
+                font-size: 10px; 
+                display: block;
+                margin-top: 2px;
+            }
+            
+            /* 교시 열 고정 */
+            th:first-child, td:first-child {
+                position: sticky;
+                left: 0;
+                background: var(--card-background);
+                z-index: 1;
+                box-shadow: 2px 0 4px rgba(0,0,0,0.1);
+                min-width: 50px;
+            }
+            
+            /* 빈 상태 모바일 최적화 */
+            .empty-state { 
+                padding: 60px 20px; 
+            }
+            .empty-state-icon { 
+                font-size: 3em; 
+            }
+            .empty-state h3 {
+                font-size: 1.2em;
+                margin-top: 15px;
+            }
+            
+            /* 자동완성 드롭다운 모바일 최적화 */
+            .autocomplete-dropdown {
+                max-height: 150px;
+                border-radius: 8px;
+            }
+            .autocomplete-item {
+                padding: 15px 20px;
+                font-size: 14px;
+                border-bottom: 1px solid var(--border-color);
+            }
+        }
+        
+        /* 작은 모바일 화면 */
+        @media (max-width: 480px) {
+            #app-container { 
+                padding: 15px; 
+                margin: 5px auto;
+            }
+            h1 { 
+                font-size: 1.3em; 
+            }
+            .title-icon { 
+                height: 1.8em;
+                max-width: 100px;
+            }
+            table { 
+                font-size: 11px; 
+            }
+            th, td { 
+                padding: 6px 3px; 
+            }
+            td { 
+                height: 45px; 
+                min-height: 45px;
+            }
+            .teacher-info h2 { 
+                font-size: 1.2em; 
+            }
+            .action-btn {
+                font-size: 13px;
+                padding: 8px 10px;
+            }
+        }
+
+        @media print {
+            body { background: white; padding: 0; margin: 0; }
+            #app-container { box-shadow: none; padding: 15px; margin: 0; max-width: 100%; }
+            #search-section { display: none; }
+            h1 { display: none; }
+            .teacher-actions { display: none; }
+            .schedule-header { margin-bottom: 10px; text-align: center; }
+            .teacher-info h2 { font-size: 9pt; margin: 0; font-weight: bold; }
+            table { 
+                font-size: 9pt; 
+                margin: 0 auto;
+                width: 75%;
+                max-width: 600px;
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact;
+                page-break-inside: avoid;
+            }
+            td, th { 
+                padding: 6px 4px; 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact;
+                line-height: 1.2;
+            }
+            .location-chip { 
+                font-size: 8px;
+                padding: 2px 5px;
+                -webkit-print-color-adjust: exact !important; 
+                print-color-adjust: exact !important; 
+            }
+            .subject-tag { 
+                width: 16px;
+                height: 16px;
+                line-height: 16px;
+                font-size: 8px;
+                -webkit-print-color-adjust: exact !important; 
+                print-color-adjust: exact !important; 
+            }
+            @page {
+                size: A4;
+                margin: 15mm;
+            }
+            * {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <h1>
+            ${iconBase64 ? `<img src="${iconBase64}" alt="logo" class="title-icon">` : '📅'}
+            <span>${pageTitle}</span>
+        </h1>
+        <div id="search-section">
+            <div class="search-container">
+                <div class="search-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                </div>
+                <input type="text" id="teacher-search" placeholder="교사 이름을 입력하세요...">
+                <div class="autocomplete-dropdown" id="autocomplete-dropdown"></div>
+            </div>
+            <div class="search-stats" id="search-stats"></div>
+            <div class="favorites-section">
+                <div class="favorites-title">자주 찾는 교사</div>
+                <div class="favorite-chips" id="favorite-chips"></div>
+            </div>
+        </div>
+        <div id="schedule-container">
+            <div class="empty-state">
+                <div class="empty-state-icon">👨‍🏫</div>
+                <h3>시간표를 확인하고 싶은 교사를 검색해보세요</h3>
+                <p>이름을 입력하시면 자동으로 목록이 나타납니다</p>
+            </div>
+        </div>
+    </div>
+    <script>
+        const allSchedules = ${dataJsonString};
+        const isColoringEnabled = ${isColoringEnabled};
+        const isFormatBColoringEnabled = ${isFormatBColoringEnabled};
+        const isLineBreakEnabled = ${isLineBreakEnabled};
+        const isLocationChipEnabled = ${isLocationChipEnabled};
+
+        const teacherSearchInput = document.getElementById('teacher-search');
+        const autocompleteDropdown = document.getElementById('autocomplete-dropdown');
+        const scheduleContainer = document.getElementById('schedule-container');
+        const searchStats = document.getElementById('search-stats');
+        const favoriteChips = document.getElementById('favorite-chips');
+
+        let filteredTeachers = [...allSchedules];
+        let selectedIndex = -1;
+        let favorites = JSON.parse(localStorage.getItem('favTeachers') || '[]');
+        
+        // --- Helper Functions ---
+        function stringToHslColor(str, s, l) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const h = hash % 360;
+            return 'hsl(' + h + ', ' + s + '%, ' + l + '%)';
+        }
+        
+        /**
+         * BUG FIX: This function has been rewritten to correctly handle subject formatting.
+         * The new logic separates location and subject first, then applies formatting,
+         * and finally combines them. This fixes issues where HTML tags from location
+         * chips interfered with subject pattern matching.
+         */
+        function processSubject(subject) {
+            if (!subject) return { html: '', style: '' };
+
+            const subjectStr = subject.toString();
+            let location = '';
+            let subjectName = subjectStr;
+            let cellBorderStyle = '';
+
+            // Step 1: Separate location from subject name.
+            // Assumes location is a single word at the beginning.
+            const match = subjectStr.match(/^(\\S+)\\s+(.+)$/);
+            
+            // Heuristic to prevent "A_Subject" from being incorrectly split
+            const isFormatAStyle = match && /^[A-Z]_/.test(match[1]);
+
+            if (match && !isFormatAStyle) {
+                location = match[1];
+                subjectName = match[2];
+            }
+
+            // Step 2: Process the subjectName for special formatting (tags, colors).
+            let processedSubjectName = subjectName;
+
+            // Format A: A_과목
+            if (isColoringEnabled) { 
+                const specialPattern = /^([A-Z])_(\\S+)/;
+                const spMatch = subjectName.match(specialPattern);
+                if (spMatch) {
+                    const letter = spMatch[1];
+                    const rest = spMatch[2];
+                    const color = stringToHslColor(letter, 60, 55);
+                    cellBorderStyle = \`border-left: 5px solid \${color};\`;
+                    const tagHtml = \`<span class="subject-tag" style="background-color: \${color};">\${letter}</span>\`;
+                    processedSubjectName = tagHtml + rest;
+                }
+            }
+            
+            // Format B: G화학, English
+            if (isFormatBColoringEnabled) { 
+                // Pattern for "G 화학" or "G화학"
+                const koreanPattern = /^([A-Z])\\s?([가-힣].*)$/; 
+                const koreanMatch = subjectName.match(koreanPattern);
+
+                // Pattern for "English" (whole word)
+                const englishPattern = /^([A-Z][a-z]+)$/; 
+                const englishMatch = subjectName.match(englishPattern);
+
+                if (koreanMatch) {
+                    const letter = koreanMatch[1];
+                    const rest = koreanMatch[2];
+                    const color = stringToHslColor(letter, 60, 55);
+                    cellBorderStyle = \`border-left: 5px solid \${color};\`;
+                    const tagHtml = \`<span class="subject-tag" style="background-color: \${color};">\${letter}</span>\`;
+                    processedSubjectName = tagHtml + rest;
+                } else if (englishMatch) {
+                    const letter = englishMatch[0].charAt(0);
+                    const color = stringToHslColor(letter, 60, 55);
+                    cellBorderStyle = \`border-left: 5px solid \${color};\`;
+                    const tagHtml = \`<span class="subject-tag" style="background-color: \${color};">\${letter}</span>\`;
+                    processedSubjectName = tagHtml + subjectName.substring(1);
+                }
+            }
+
+            // Step 3: Process the location for chip formatting.
+            let locationHtml = '';
+            if (location) {
+                if (isLocationChipEnabled) {
+                    const locationColor = stringToHslColor(location, 65, 50);
+                    locationHtml = \`<span class="location-chip" style="background-color: \${locationColor};">\${location}</span>\`;
+                } else {
+                    locationHtml = location; // Just text
+                }
+            }
+
+            // Step 4: Combine location and subject with line breaks.
+            let finalHtml;
+            if (locationHtml) {
+                if (isLineBreakEnabled) {
+                    finalHtml = \`\${locationHtml}<br>\${processedSubjectName}\`;
+                } else {
+                    finalHtml = \`\${locationHtml} \${processedSubjectName}\`;
+                }
+            } else {
+                finalHtml = processedSubjectName; // No location, just the processed subject
+            }
+
+            return { html: finalHtml, style: cellBorderStyle };
+        }
+
+
+        // --- Main Functions ---
+        function init() {
+            updateSearchStats();
+            updateFavoriteChips();
+            setupEventListeners();
+        }
+
+        function setupEventListeners() {
+            teacherSearchInput.addEventListener('input', handleSearch);
+            teacherSearchInput.addEventListener('keydown', handleKeyNavigation);
+            teacherSearchInput.addEventListener('focus', showDropdown);
+            document.addEventListener('click', handleClickOutside);
+        }
+
+        function handleSearch(e) {
+            const query = e.target.value.trim().toLowerCase();
+            if (query === '') {
+                filteredTeachers = [...allSchedules];
+                hideDropdown();
+                showEmptyState();
+            } else {
+                filteredTeachers = allSchedules.filter(teacher => teacher.name.toLowerCase().includes(query));
+                updateAutocomplete();
+            }
+            updateSearchStats();
+        }
+
+        function handleKeyNavigation(e) {
+            const items = autocompleteDropdown.querySelectorAll('.autocomplete-item');
+            if (!items.length) return;
+
+            switch(e.key) {
+                case 'ArrowDown':
+                    e.preventDefault();
+                    selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                    updateSelection(items);
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    selectedIndex = Math.max(selectedIndex - 1, 0);
+                    updateSelection(items);
+                    break;
+                case 'Enter':
+                    e.preventDefault();
+                    if (selectedIndex >= 0 && items[selectedIndex]) {
+                        selectTeacher(filteredTeachers[selectedIndex].name);
+                    } else if (filteredTeachers.length > 0) {
+                        selectTeacher(filteredTeachers[0].name);
+                    }
+                    break;
+                case 'Escape':
+                    hideDropdown();
+                    break;
+            }
+        }
+
+        function updateSelection(items) {
+            items.forEach((item, index) => item.classList.toggle('selected', index === selectedIndex));
+        }
+
+        function updateAutocomplete() {
+            if (filteredTeachers.length === 0) {
+                hideDropdown();
+                return;
+            }
+            autocompleteDropdown.innerHTML = filteredTeachers.map(teacher => {
+                const isFavorite = favorites.includes(teacher.name);
+                return \`<div class="autocomplete-item" onclick="selectTeacher('\${teacher.name}')">\${isFavorite ? '⭐ ' : ''}\${teacher.name}</div>\`;
+            }).join('');
+            showDropdown();
+            selectedIndex = -1;
+        }
+
+        function selectTeacher(teacherName) {
+            teacherSearchInput.value = teacherName;
+            hideDropdown();
+            displaySchedule(teacherName);
+        }
+
+        function displaySchedule(teacherName) {
+            const teacher = allSchedules.find(t => t.name === teacherName);
+            if (!teacher) {
+                scheduleContainer.innerHTML = '<div class="empty-state"><h3>해당 교사의 시간표 정보가 없습니다.</h3></div>';
+                return;
+            }
+            
+            const isFavorite = favorites.includes(teacherName);
+            const days = ['월', '화', '수', '목', '금'];
+            const maxPeriods = teacher.maxPeriods || 7; // 동적 교시 수 사용
+            const periodCounts = teacher.periodCounts || [7, 7, 7, 6, 6]; // 요일별 교시 수
+            
+            let tableHTML = \`
+                <div class="schedule-header">
+                    <div class="teacher-info"><h2>\${teacher.name} 선생님 시간표</h2></div>
+                    <div class="teacher-actions">
+                        <button class="action-btn \${isFavorite ? 'favorited' : ''}" onclick="toggleFavorite('\${teacherName}')">
+                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="\${isFavorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
+                            <span>\${isFavorite ? '즐겨찾기됨' : '즐겨찾기'}</span>
+                        </button>
+                        <button class="action-btn" onclick="printSchedule()">
+                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                            <span>인쇄</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="table-container">
+                <table>
+                    <thead><tr><th>교시</th><th>월요일</th><th>화요일</th><th>수요일</th><th>목요일</th><th>금요일</th></tr></thead>
+                    <tbody>\`;
+
+            for (let i = 0; i < maxPeriods; i++) {
+                tableHTML += \`<tr><td>\${i + 1}교시</td>\`;
+                days.forEach((day, dayIndex) => {
+                    // 해당 요일의 교시 수를 확인해서 데이터가 있는 경우만 표시
+                    if (i < periodCounts[dayIndex] && teacher.schedule[day] && teacher.schedule[day][i]) {
+                        const subjectInfo = processSubject(teacher.schedule[day][i]);
+                        tableHTML += \`<td style="\${subjectInfo.style}">\${subjectInfo.html}</td>\`;
+                    } else {
+                        // 해당 요일에 이 교시가 없으면 빈 셀
+                        tableHTML += \`<td style="background-color: var(--border-color); color: var(--subtle-text);">-</td>\`;
+                    }
+                });
+                tableHTML += '</tr>';
+            }
+            
+            tableHTML += '</tbody></table></div>';
+            scheduleContainer.innerHTML = tableHTML;
+        }
+
+        function toggleFavorite(teacherName) {
+            const index = favorites.indexOf(teacherName);
+            if (index > -1) {
+                favorites.splice(index, 1);
+            } else {
+                favorites.push(teacherName);
+            }
+            localStorage.setItem('favTeachers', JSON.stringify(favorites));
+            updateFavoriteChips();
+            displaySchedule(teacherName);
+        }
+
+        function updateFavoriteChips() {
+            if (favorites.length === 0) {
+                favoriteChips.innerHTML = '<span style="color: var(--subtle-text); font-size: 13px;">아직 즐겨찾기한 교사가 없습니다</span>';
+                return;
+            }
+            favoriteChips.innerHTML = favorites.map(name => \`<button class="favorite-chip" onclick="selectTeacher('\${name}')">\${name}</button>\`).join('');
+        }
+
+        function updateSearchStats() {
+            const total = allSchedules.length;
+            const filtered = filteredTeachers.length;
+            if (teacherSearchInput.value.trim() === '') {
+                searchStats.textContent = \`총 \${total}명의 교사\`;
+            } else {
+                searchStats.textContent = \`\${filtered}명의 교사가 검색됨 (전체 \${total}명)\`;
+            }
+        }
+
+        function showDropdown() {
+            if (filteredTeachers.length > 0 && teacherSearchInput.value.trim() !== '') {
+                autocompleteDropdown.style.display = 'block';
+            }
+        }
+
+        function hideDropdown() {
+            autocompleteDropdown.style.display = 'none';
+            selectedIndex = -1;
+        }
+
+        function handleClickOutside(e) {
+            if (!e.target.closest('.search-container')) {
+                hideDropdown();
+            }
+        }
+
+        function showEmptyState() {
+            scheduleContainer.innerHTML = \`
+                <div class="empty-state">
+                    <div class="empty-state-icon">👨‍🏫</div>
+                    <h3>시간표를 확인하고 싶은 교사를 검색해보세요</h3>
+                    <p>이름을 입력하시면 자동으로 목록이 나타납니다</p>
+                </div>\`;
+        }
+
+        function printSchedule() {
+            window.print();
+        }
+
+        init();
+    <\/script>
+</body>
+</html>
+        `;
+    }
+
+    // 초기 테마 미리보기 업데이트
+    updateThemePreview();
+</script>
+</body>
+</html>
