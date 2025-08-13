@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>학생 개인별 시간표 조회 HTML 페이지 생성기 2025</title>
+    <title>시간표 도구 – 설악고</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <!-- 🔥 외부 CSS 파일 참조 -->
     <link rel="stylesheet" href="styles.css">
@@ -576,10 +576,8 @@
                     const row2 = weeklyRaw[1] || []; // 2행 (0-indexed이므로 index 1)
                     const row3 = weeklyRaw[2] || []; // 3행 (0-indexed이므로 index 2)
                     
-                    // 2행과 3행을 모두 분석해서 요일 시작 위치 찾기
+                    // 2행에서 요일 시작 위치 찾기
                     const dayStartCols = {};
-                    
-                    // 먼저 2행에서 요일 찾기
                     for (let col = 0; col < row2.length; col++) {
                         const cellValue = row2[col];
                         if (cellValue && daysInOrder.includes(String(cellValue).trim())) {
@@ -587,47 +585,31 @@
                         }
                     }
                     
-                    // 3행에서 "1" 교시가 시작되는 위치로 더 정확하게 조정
-                    Object.keys(dayStartCols).forEach(day => {
-                        const dayCol = dayStartCols[day];
-                        // 해당 요일에서 "1"이 나타나는 첫 번째 위치 찾기
-                        for (let col = dayCol; col < row3.length; col++) {
-                            const periodValue = row3[col];
-                            if (periodValue && String(periodValue).trim() === '1') {
-                                dayStartCols[day] = col;
-                                break;
-                            }
-                        }
-                    });
-                    
                     console.log('감지된 요일 시작 위치:', dayStartCols);
                     
-                    // 각 요일별 교시 수 계산 (더 정확한 방법)
+                    // 각 요일별 교시 수 계산
                     const periodCounts = [];
-                    const sortedDays = daysInOrder.filter(day => day in dayStartCols)
-                                                  .sort((a, b) => dayStartCols[a] - dayStartCols[b]);
-                    
                     for (let i = 0; i < daysInOrder.length; i++) {
                         const currentDay = daysInOrder[i];
                         if (currentDay in dayStartCols) {
                             const startCol = dayStartCols[currentDay];
                             let endCol;
                             
-                            // 현재 요일의 다음 요일 찾기 (정렬된 순서대로)
-                            const currentSortedIndex = sortedDays.indexOf(currentDay);
-                            if (currentSortedIndex < sortedDays.length - 1) {
-                                const nextDay = sortedDays[currentSortedIndex + 1];
-                                endCol = dayStartCols[nextDay] - 1;
-                            } else {
-                                // 마지막 요일인 경우 - 비어있지 않은 마지막 열까지
-                                endCol = row2.length - 1;
-                                // 뒤에서부터 빈 셀들 제거
-                                while (endCol > startCol && (!row3[endCol] || String(row3[endCol]).trim() === '')) {
-                                    endCol--;
+                            // 다음 요일 찾기
+                            if (i < daysInOrder.length - 1) {
+                                const nextDay = daysInOrder[i + 1];
+                                if (nextDay in dayStartCols) {
+                                    endCol = dayStartCols[nextDay] - 1;
+                                } else {
+                                    // 다음 요일이 없으면 전체 길이에서 1을 뺀 값
+                                    endCol = row2.length - 1;
                                 }
+                            } else {
+                                // 마지막 요일인 경우
+                                endCol = row2.length - 1;
                             }
                             
-                            const periodCount = Math.max(1, endCol - startCol + 1);
+                            const periodCount = endCol - startCol + 1;
                             periodCounts.push(periodCount);
                             console.log(currentDay + '요일: 열 ' + startCol + '~' + endCol + ' = ' + periodCount + '교시');
                         } else {
@@ -652,16 +634,13 @@
             
             // 기존 로직: 미리 정의된 패턴 사용
             const commonPatterns = [
-                [7, 7, 7, 6, 6], [7, 7, 6, 7, 6], [7, 7, 7, 7, 7], [6, 6, 6, 6, 6], [8, 8, 8, 7, 7],
+                [7, 7, 6, 7, 6], // 새로운 패턴 추가
+                [7, 7, 7, 6, 6], [7, 7, 7, 7, 7], [6, 6, 6, 6, 6], [8, 8, 8, 7, 7],
                 [7, 7, 6, 6, 6], [7, 6, 6, 6, 6], [8, 8, 7, 7, 7], [8, 7, 7, 7, 7]
             ];
             for (const pattern of commonPatterns) {
-                if (pattern.reduce((a, b) => a + b, 0) === totalCells) {
-                    console.log(`패턴 매칭됨: [${pattern.join(', ')}], 총 셀 수: ${totalCells}`);
-                    return { periodCounts: pattern, maxPeriods: Math.max(...pattern) };
-                }
+                if (pattern.reduce((a, b) => a + b, 0) === totalCells) return { periodCounts: pattern, maxPeriods: Math.max(...pattern) };
             }
-            console.log(`기본 패턴 사용: [7, 7, 7, 6, 6], 총 셀 수: ${totalCells}`);
             return { periodCounts: [7, 7, 7, 6, 6], maxPeriods: 7 };
         }
         
@@ -835,27 +814,12 @@
                 weeklyRaw.forEach(row => {
                     const teacherName = cleanTeacherName(row[0] ? String(row[0]).trim() : '');
                     const scheduleData = row.slice(1);
+                    let currentIndex = 0;
                     
-                    // 각 요일별로 정확한 시작 인덱스 계산
                     for (let i = 0; i < daysInOrder.length; i++) {
                         const day = daysInOrder[i];
                         const count = periodStructure.periodCounts[i] || 0;
-                        
-                        // 각 요일의 실제 시작 인덱스 계산 (누적)
-                        let startIndex = 0;
-                        for (let j = 0; j < i; j++) {
-                            startIndex += periodStructure.periodCounts[j] || 0;
-                        }
-                        
-                        // 디버깅 로그 추가
-                        if (day === '목' && scheduleData.some(cell => cell && String(cell).includes('301'))) {
-                            console.log(`${day}요일: startIndex=${startIndex}, count=${count}, endIndex=${startIndex + count - 1}`);
-                            console.log(`${day}요일 데이터:`, scheduleData.slice(startIndex, startIndex + count));
-                            console.log('전체 periodCounts:', periodStructure.periodCounts);
-                        }
-                        
-                        // 현재 요일의 데이터 추출
-                        const daySchedule = scheduleData.slice(startIndex, startIndex + count);
+                        const daySchedule = scheduleData.slice(currentIndex, currentIndex + count);
                         
                         daySchedule.forEach((cell, periodIndex) => {
                             if (cell) {
@@ -865,12 +829,6 @@
                                     const grade = classIdentifier.charAt(0);
                                     const classNum = classIdentifier.substring(1).replace(/^0/, '');
                                     const homeroom = `${grade}-${classNum}`;
-                                    
-                                    // 목요일 디버깅
-                                    if (day === '목' && homeroom === '3-01') {
-                                        console.log(`목요일 ${periodIndex + 1}교시 데이터:`, cellStr);
-                                        console.log(`전체 startIndex: ${startIndex}, 현재 periodIndex: ${periodIndex}`);
-                                    }
                                     
                                     if (!fixedSchedules[homeroom]) {
                                         fixedSchedules[homeroom] = { schedule: {} };
@@ -912,6 +870,7 @@
                                 }
                             }
                         });
+                        currentIndex += count;
                     }
                 });
             }
