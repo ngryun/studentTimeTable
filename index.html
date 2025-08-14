@@ -16,7 +16,7 @@
                 <a href="https://namgungyeon.tistory.com/131" target="_blank" style="display: inline-block; background: linear-gradient(45deg, #007bff, #0056b3); color: white; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-size: 14px;">📖 도움말</a>
             </div>
             <div style="font-size: 12px; color: #666; font-style: italic; margin-bottom: 5px;">made by Namgung yeon (seolak high school)</div>
-            <div style="font-size: 11px; color: #888;">Last updated : 2025.08.13 15:00</div>
+            <div style="font-size: 11px; color: #888;">Last updated : 2025.08.14 11:00</div>
         </div>
 
         <div id="step1">
@@ -187,13 +187,22 @@
     <script src="student-timetable-template.js"></script>
 
     <script>
-        // 템플릿 스크립트가 로드될 때까지 기다리기
-        function waitForTemplate(callback) {
-            if (typeof window.StudentTimetableTemplate !== 'undefined') {
-                callback();
-            } else {
-                setTimeout(() => waitForTemplate(callback), 50);
+        // 템플릿 스크립트가 로드될 때까지 기다리기 (타임아웃 추가)
+        function waitForTemplate(callback, timeout = 5000) {
+            const startTime = Date.now();
+            
+            function checkTemplate() {
+                if (typeof window.StudentTimetableTemplate !== 'undefined') {
+                    callback();
+                } else if (Date.now() - startTime > timeout) {
+                    alert('템플릿 파일 로딩이 실패했습니다. 페이지를 새로고침하고 다시 시도해주세요.');
+                    console.error('Template loading timeout');
+                } else {
+                    setTimeout(checkTemplate, 50);
+                }
             }
+            
+            checkTemplate();
         }
     </script>
 
@@ -306,8 +315,14 @@
                         timetableData.weeklyFormat = detectTimetableFormat(previewData);
                         const formatName = timetableData.weeklyFormat === 'formatB' ? '압핀 양식' : '컴시간 양식';
                         
-                        const headerRow = timetableData.weeklyFormat === 'formatB' ? 0 : 2;
+                        const headerRow = timetableData.weeklyFormat === 'formatB' ? 0 : 0;
                         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, range: headerRow, defval: "" });
+                        
+                        // 디버깅을 위한 처음 5행 출력
+                        console.log('업로드된 엑셀 파일 처음 5행:');
+                        for (let i = 0; i < Math.min(5, jsonData.length); i++) {
+                            console.log(`${i+1}행:`, jsonData[i]);
+                        }
                         
                         timetableData.weekly = jsonData;
                         updateUploadBoxUI('weekly', `${file.name} (${formatName} 감지)`);
@@ -327,8 +342,9 @@
                     checkFilesForStep1();
                     if(type === 'info') checkFilesForStep3();
                 };
-                reader.onerror = () => {
-                    STATUS_P.textContent = `"${file.name}" 파일 읽기 오류.`;
+                reader.onerror = (error) => {
+                    console.error('파일 읽기 오류:', error);
+                    STATUS_P.textContent = `"${file.name}" 파일 읽기 오류: ${error.message || '파일 형식을 확인해주세요.'}`;
                     updateUploadBoxUI(type, '오류', false);
                 };
                 reader.readAsArrayBuffer(file);
@@ -423,12 +439,17 @@
             try {
                 const allSelections = {};
                 timetableData.selection.forEach(file => {
+                    if (!file.data || file.data.length < 2) {
+                        console.warn(`파일 ${file.name}에 유효한 데이터가 없습니다.`);
+                        return;
+                    }
                     const header = file.data[0];
                     const rows = file.data.slice(1);
                     rows.forEach(row => {
+                        if (!row || row.length < 6) return;
                         const grade = row[1];
                         if (!grade) return;
-                        for (let i = 5; i < header.length; i++) {
+                        for (let i = 5; i < Math.min(header.length, row.length); i++) {
                             const subjectName = header[i];
                             const selectionGroup = row[i];
                             if (subjectName && selectionGroup) {
@@ -489,9 +510,10 @@
                         }
                         i++;
                     }
-                } else { // formatA (original logic)
+                } else { // formatA (컴시간 양식 - 새로운 동적 파싱 사용)
                     const totalCells = weeklyRaw[0].length - 1;
                     const periodStructure = calculatePeriodStructure(totalCells, weeklyRaw);
+                    console.log('템플릿 생성에서 사용할 교시 구조:', periodStructure);
                     const daysInOrder = ['월', '화', '수', '목', '금'];
                     
                     weeklyRaw.forEach(row => {
@@ -572,88 +594,20 @@
             // 실제 엑셀 데이터가 있다면 2행과 3행을 분석해서 정확한 교시 구조를 파악
             if (weeklyRaw && weeklyRaw.length >= 3) {
                 try {
-                    const daysInOrder = ['월', '화', '수', '목', '금'];
-                    const row2 = weeklyRaw[1] || []; // 2행 (0-indexed이므로 index 1)
-                    const row3 = weeklyRaw[2] || []; // 3행 (0-indexed이므로 index 2)
-                    
-                    // 2행과 3행을 모두 분석해서 요일 시작 위치 찾기
-                    const dayStartCols = {};
-                    
-                    // 먼저 2행에서 요일 찾기
-                    for (let col = 0; col < row2.length; col++) {
-                        const cellValue = row2[col];
-                        if (cellValue && daysInOrder.includes(String(cellValue).trim())) {
-                            dayStartCols[String(cellValue).trim()] = col;
-                        }
-                    }
-                    
-                    // 3행에서 "1" 교시가 시작되는 위치로 더 정확하게 조정
-                    Object.keys(dayStartCols).forEach(day => {
-                        const dayCol = dayStartCols[day];
-                        // 해당 요일에서 "1"이 나타나는 첫 번째 위치 찾기
-                        for (let col = dayCol; col < row3.length; col++) {
-                            const periodValue = row3[col];
-                            if (periodValue && String(periodValue).trim() === '1') {
-                                dayStartCols[day] = col;
-                                break;
-                            }
-                        }
-                    });
-                    
-                    console.log('감지된 요일 시작 위치:', dayStartCols);
-                    
-                    // 각 요일별 교시 수 계산 (더 정확한 방법)
-                    const periodCounts = [];
-                    const sortedDays = daysInOrder.filter(day => day in dayStartCols)
-                                                  .sort((a, b) => dayStartCols[a] - dayStartCols[b]);
-                    
-                    for (let i = 0; i < daysInOrder.length; i++) {
-                        const currentDay = daysInOrder[i];
-                        if (currentDay in dayStartCols) {
-                            const startCol = dayStartCols[currentDay];
-                            let endCol;
-                            
-                            // 현재 요일의 다음 요일 찾기 (정렬된 순서대로)
-                            const currentSortedIndex = sortedDays.indexOf(currentDay);
-                            if (currentSortedIndex < sortedDays.length - 1) {
-                                const nextDay = sortedDays[currentSortedIndex + 1];
-                                endCol = dayStartCols[nextDay] - 1;
-                            } else {
-                                // 마지막 요일인 경우 - 비어있지 않은 마지막 열까지
-                                endCol = row2.length - 1;
-                                // 뒤에서부터 빈 셀들 제거
-                                while (endCol > startCol && (!row3[endCol] || String(row3[endCol]).trim() === '')) {
-                                    endCol--;
-                                }
-                            }
-                            
-                            const periodCount = Math.max(1, endCol - startCol + 1);
-                            periodCounts.push(periodCount);
-                            console.log(currentDay + '요일: 열 ' + startCol + '~' + endCol + ' = ' + periodCount + '교시');
-                        } else {
-                            periodCounts.push(0);
-                        }
-                    }
-                    
-                    const totalCalculated = periodCounts.reduce((a, b) => a + b, 0);
-                    console.log('계산된 교시 패턴:', periodCounts, '총합:', totalCalculated);
-                    
-                    // 계산된 총합이 실제 데이터 길이와 일치하거나 비슷하면 사용
-                    if (totalCalculated > 0 && Math.abs(totalCalculated - totalCells) <= 2) {
-                        return {
-                            periodCounts: periodCounts,
-                            maxPeriods: Math.max(...periodCounts)
-                        };
+                    const result = parseDynamicPeriodStructure(weeklyRaw, totalCells);
+                    if (result) {
+                        console.log('동적 파싱 성공:', result);
+                        return result;
                     }
                 } catch (error) {
-                    console.warn('엑셀 헤더 분석 중 오류:', error);
+                    console.warn('동적 교시 구조 파싱 중 오류:', error);
                 }
             }
             
             // 기존 로직: 미리 정의된 패턴 사용
             const commonPatterns = [
                 [7, 7, 7, 6, 6], [7, 7, 6, 7, 6], [7, 7, 7, 7, 7], [6, 6, 6, 6, 6], [8, 8, 8, 7, 7],
-                [7, 7, 6, 6, 6], [7, 6, 6, 6, 6], [8, 8, 7, 7, 7], [8, 7, 7, 7, 7]
+                [7, 7, 6, 6, 6], [7, 6, 6, 6, 6], [8, 8, 7, 7, 7], [8, 7, 7, 7, 7], [7, 7, 4, 7, 5]
             ];
             for (const pattern of commonPatterns) {
                 if (pattern.reduce((a, b) => a + b, 0) === totalCells) {
@@ -663,6 +617,86 @@
             }
             console.log(`기본 패턴 사용: [7, 7, 7, 6, 6], 총 셀 수: ${totalCells}`);
             return { periodCounts: [7, 7, 7, 6, 6], maxPeriods: 7 };
+        }
+        
+        // 새로운 동적 교시 구조 파싱 함수
+        function parseDynamicPeriodStructure(weeklyRaw, totalCells) {
+            const daysInOrder = ['월', '화', '수', '목', '금'];
+            const row2 = weeklyRaw[1] || []; // 2행 - 요일이 병합되어 있음
+            const row3 = weeklyRaw[2] || []; // 3행 - 교시 숫자
+            
+            console.log('2행 (요일):', row2);
+            console.log('3행 (교시):', row3);
+            
+            // 1단계: 2행에서 요일 위치 찾기
+            const dayPositions = [];
+            for (let col = 0; col < row2.length; col++) {
+                const cellValue = row2[col];
+                if (cellValue && daysInOrder.includes(String(cellValue).trim())) {
+                    dayPositions.push({
+                        day: String(cellValue).trim(),
+                        startCol: col
+                    });
+                }
+            }
+            
+            console.log('요일 위치들:', dayPositions);
+            
+            // 2단계: 각 요일의 교시 범위 계산
+            const dayPeriodMap = {};
+            
+            for (let i = 0; i < dayPositions.length; i++) {
+                const currentDay = dayPositions[i];
+                const nextDay = dayPositions[i + 1];
+                
+                // 현재 요일의 끝 위치 계산
+                const endCol = nextDay ? nextDay.startCol - 1 : row3.length - 1;
+                
+                // 해당 범위에서 최대 교시 수 찾기
+                let maxPeriod = 0;
+                const periodsFound = [];
+                for (let col = currentDay.startCol; col <= endCol; col++) {
+                    if (col < row3.length && row3[col] !== null && row3[col] !== undefined) {
+                        const cellValue = String(row3[col]).trim();
+                        if (cellValue !== '' && cellValue !== 'null' && cellValue !== 'undefined') {
+                            const periodNum = parseFloat(cellValue);
+                            if (!isNaN(periodNum) && periodNum >= 1) {
+                                periodsFound.push(periodNum);
+                                maxPeriod = Math.max(maxPeriod, periodNum);
+                            }
+                        }
+                    }
+                }
+                console.log(`${currentDay.day}요일 범위 ${currentDay.startCol}~${endCol}에서 발견된 교시:`, periodsFound, '최대:', maxPeriod);
+                
+                if (maxPeriod > 0) {
+                    dayPeriodMap[currentDay.day] = maxPeriod;
+                    console.log(`${currentDay.day}요일: ${maxPeriod}교시 (열 ${currentDay.startCol}~${endCol})`);
+                }
+            }
+            
+            // 3단계: 결과 구성
+            const periodCounts = [];
+            for (const day of daysInOrder) {
+                periodCounts.push(dayPeriodMap[day] || 0);
+            }
+            
+            const totalCalculated = periodCounts.reduce((a, b) => a + b, 0);
+            console.log('동적 파싱 결과:', periodCounts, '총합:', totalCalculated);
+            
+            // 결과 검증 (더 관대하게)
+            if (totalCalculated > 0) {
+                console.log('동적 파싱 성공! 결과 반환:', {
+                    periodCounts: periodCounts,
+                    maxPeriods: Math.max(...periodCounts)
+                });
+                return {
+                    periodCounts: periodCounts,
+                    maxPeriods: Math.max(...periodCounts)
+                };
+            }
+            
+            return null;
         }
         
         function parseSubjectAndTeacher(rawString) {
@@ -847,12 +881,6 @@
                             startIndex += periodStructure.periodCounts[j] || 0;
                         }
                         
-                        // 디버깅 로그 추가
-                        if (day === '목' && scheduleData.some(cell => cell && String(cell).includes('301'))) {
-                            console.log(`${day}요일: startIndex=${startIndex}, count=${count}, endIndex=${startIndex + count - 1}`);
-                            console.log(`${day}요일 데이터:`, scheduleData.slice(startIndex, startIndex + count));
-                            console.log('전체 periodCounts:', periodStructure.periodCounts);
-                        }
                         
                         // 현재 요일의 데이터 추출
                         const daySchedule = scheduleData.slice(startIndex, startIndex + count);
@@ -866,11 +894,6 @@
                                     const classNum = classIdentifier.substring(1).replace(/^0/, '');
                                     const homeroom = `${grade}-${classNum}`;
                                     
-                                    // 목요일 디버깅
-                                    if (day === '목' && homeroom === '3-01') {
-                                        console.log(`목요일 ${periodIndex + 1}교시 데이터:`, cellStr);
-                                        console.log(`전체 startIndex: ${startIndex}, 현재 periodIndex: ${periodIndex}`);
-                                    }
                                     
                                     if (!fixedSchedules[homeroom]) {
                                         fixedSchedules[homeroom] = { schedule: {} };
@@ -942,9 +965,9 @@
                     const classNum = row[2];
                     const student = { 
                         name: row[4], 
-                        studentId: row[3] || '', // 학번 필드 추가 (3번째 열)
+                        studentId: row[3] || '', // 학번 필드 
                         homeroom: `${grade}-${classNum}`, 
-                        number: row[3] || '',
+                        number: row[3] || '', // 번호 필드
                         schedule: {}, 
                         maxPeriods: periodStructure.maxPeriods, 
                         periodCounts: periodStructure.periodCounts 
@@ -1062,10 +1085,16 @@
                 const pageTitle = document.getElementById('timetable-title').value.trim() || '시간표 조회 시스템';
                 const dataString = JSON.stringify(studentsData);
                 
-                // 🔥 외부 템플릿 사용 (새로운 매개변수 추가)
                 // 템플릿 객체가 로드되었는지 확인
                 if (typeof window.StudentTimetableTemplate === 'undefined') {
                     alert('템플릿 파일이 제대로 로드되지 않았습니다. 페이지를 새로고침해주세요.');
+                    console.error('StudentTimetableTemplate is not defined');
+                    return;
+                }
+                
+                if (typeof window.StudentTimetableTemplate.getHtmlTemplate !== 'function') {
+                    alert('템플릿 함수가 올바르지 않습니다. student-timetable-template.js 파일을 확인해주세요.');
+                    console.error('getHtmlTemplate function not found');
                     return;
                 }
                 
