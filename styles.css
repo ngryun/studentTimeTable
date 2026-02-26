@@ -1,40 +1,207 @@
-/* 학생 시간표 생성기 - 메인 스타일시트 (업그레이드 버전) */
+/* 학생 시간표 생성기 - 메인 스타일시트 */
 
-/* 기본 스타일 */
+/* ===== 디자인 시스템 변수 ===== */
+:root {
+    --color-primary: #2563eb;
+    --color-primary-dark: #1d4ed8;
+    --color-primary-light: #eff6ff;
+    --color-success: #16a34a;
+    --color-success-light: #f0fdf4;
+    --color-warning: #ea580c;
+    --color-warning-light: #fff7ed;
+    --color-danger: #dc2626;
+    --color-danger-light: #fef2f2;
+    --color-purple: #7c3aed;
+    --color-purple-dark: #6d28d9;
+
+    --color-text: #1e293b;
+    --color-text-secondary: #475569;
+    --color-text-muted: #94a3b8;
+    --color-border: #e2e8f0;
+    --color-border-light: #f1f5f9;
+    --color-bg: #f8fafc;
+    --color-bg-card: #ffffff;
+
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 32px;
+    --space-2xl: 48px;
+
+    --font-xs: 11px;
+    --font-sm: 12px;
+    --font-base: 14px;
+    --font-md: 16px;
+    --font-lg: 18px;
+    --font-xl: 22px;
+
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+}
+
+/* ===== 기본 스타일 ===== */
 body {
-    font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+    font-family: 'Noto Sans KR', sans-serif;
     display: flex;
     justify-content: center;
     align-items: flex-start;
     min-height: 100vh;
     margin: 0;
     padding: 20px;
-    background-color: #f0f2f5;
+    background-color: var(--color-bg);
+    color: var(--color-text);
 }
 
 #app-container {
     width: 100%;
     max-width: 800px;
-    background-color: white;
+    background-color: var(--color-bg-card);
     padding: 40px;
-    border-radius: 10px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    border-radius: var(--radius-xl);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    border: 1px solid var(--color-border);
     text-align: center;
 }
 
 h1, h2 {
-    color: #333;
+    color: var(--color-text);
 }
 
 h2 {
-    font-size: 1.2em;
-    color: #555;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 15px;
+    font-size: var(--font-lg);
+    color: var(--color-text-secondary);
+    border-bottom: 1px solid var(--color-border-light);
+    padding-bottom: var(--space-md);
     margin-top: 40px;
 }
 
-/* 업로드 박스 스타일 */
+/* ===== 헤더 영역 ===== */
+.app-header {
+    text-align: center;
+    margin-bottom: var(--space-xl);
+}
+
+.app-header h1 {
+    margin-bottom: var(--space-sm);
+    font-size: var(--font-xl);
+}
+
+.help-link-wrapper {
+    margin-bottom: var(--space-md);
+}
+
+.help-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--color-primary);
+    color: white;
+    padding: 8px 16px;
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-base);
+    font-weight: 500;
+    transition: background 0.2s;
+}
+
+.help-link:hover {
+    background: var(--color-primary-dark);
+}
+
+.help-link svg {
+    flex-shrink: 0;
+}
+
+.app-credit {
+    font-size: var(--font-sm);
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-xs);
+}
+
+.app-version {
+    font-size: var(--font-xs);
+    color: var(--color-text-muted);
+}
+
+/* ===== 스텝 인디케이터 ===== */
+.step-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: var(--space-xl);
+    gap: 0;
+}
+
+.step-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    opacity: 0.4;
+    transition: opacity 0.3s;
+}
+
+.step-item.active,
+.step-item.completed {
+    opacity: 1;
+}
+
+.step-number {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--color-border);
+    color: var(--color-text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: var(--font-base);
+    transition: all 0.3s;
+}
+
+.step-item.active .step-number {
+    background: var(--color-primary);
+    color: white;
+}
+
+.step-item.completed .step-number {
+    background: var(--color-success);
+    color: white;
+}
+
+.step-label {
+    font-size: var(--font-sm);
+    color: var(--color-text-muted);
+    font-weight: 500;
+}
+
+.step-item.active .step-label {
+    color: var(--color-primary);
+    font-weight: 600;
+}
+
+.step-item.completed .step-label {
+    color: var(--color-success);
+}
+
+.step-connector {
+    width: 60px;
+    height: 2px;
+    background: var(--color-border);
+    margin: 0 var(--space-sm);
+    margin-bottom: 20px;
+    transition: background 0.3s;
+}
+
+.step-connector.completed {
+    background: var(--color-success);
+}
+
+/* ===== 업로드 박스 스타일 ===== */
 .upload-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -43,12 +210,12 @@ h2 {
 }
 
 .upload-box {
-    border: 2px dashed #007bff;
-    border-radius: 10px;
+    border: 2px dashed var(--color-border);
+    border-radius: var(--radius-lg);
     padding: 20px;
-    background-color: #f8f9fa;
+    background-color: var(--color-bg);
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all 0.2s;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -56,122 +223,151 @@ h2 {
     min-height: 120px;
 }
 
-.upload-box:hover {
-    background-color: #e9ecef;
-    border-color: #0056b3;
+.upload-box:hover,
+.upload-box.dragover {
+    background-color: var(--color-primary-light);
+    border-color: var(--color-primary);
 }
 
 .upload-box.uploaded {
-    border-color: #28a745;
-    background-color: #e6f6e9;
+    border-color: var(--color-success);
+    background-color: var(--color-success-light);
+    border-style: solid;
 }
 
 .upload-box p {
     margin: 0;
-    font-size: 16px;
-    color: #555;
-    font-weight: bold;
+    font-size: var(--font-md);
+    color: var(--color-text-secondary);
+    font-weight: 600;
 }
 
 .upload-box .file-name {
-    font-size: 12px;
-    color: #666;
-    margin-top: 8px;
+    font-size: var(--font-sm);
+    color: var(--color-text-muted);
+    margin-top: var(--space-sm);
     word-break: break-all;
     padding: 0 10px;
 }
 
-.file-input { 
-    display: none; 
+.file-input {
+    display: none;
 }
 
-/* 2단계 개선된 스타일 */
+/* ===== 아이콘 업로드/미리보기 ===== */
+#upload-box-icon {
+    margin-top: 20px;
+}
+
+#icon-preview-container {
+    display: none;
+    margin-bottom: var(--space-md);
+}
+
+#icon-preview {
+    max-width: 100px;
+    max-height: 100px;
+    border-radius: var(--radius-md);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+#icon-preview-container p {
+    margin: var(--space-sm) 0 0 0;
+    font-size: var(--font-sm);
+    color: var(--color-text-muted);
+}
+
+/* ===== 2단계 스타일 ===== */
 #step2 {
-    background: linear-gradient(135deg, #f8f9ff 0%, #e8f4fd 100%);
-    border: 1px solid #e3f2fd;
-    border-radius: 15px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
     padding: 30px;
     margin: 30px 0;
     text-align: left;
-    animation: fadeInUp 0.5s ease-out;
+    animation: fadeInUp 0.4s ease-out;
 }
 
 .step2-header {
     display: flex;
     align-items: center;
-    margin-bottom: 25px;
+    margin-bottom: var(--space-lg);
 }
 
 .step2-icon {
-    font-size: 2em;
-    margin-right: 15px;
-    background: linear-gradient(45deg, #4CAF50, #45a049);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: var(--space-md);
+    color: var(--color-text-secondary);
+}
+
+.step2-icon svg {
+    width: 28px;
+    height: 28px;
 }
 
 .step2-title {
-    font-size: 1.3em;
-    color: #1976d2;
+    font-size: var(--font-lg);
+    color: var(--color-text);
     margin: 0;
     font-weight: 600;
 }
 
 .optional-badge {
-    background: #ff9800;
+    background: var(--color-text-muted);
     color: white;
-    font-size: 12px;
-    padding: 4px 8px;
-    border-radius: 12px;
-    margin-left: 10px;
+    font-size: var(--font-xs);
+    padding: 3px 8px;
+    border-radius: var(--radius-sm);
+    margin-left: var(--space-sm);
     font-weight: 500;
 }
 
 .step2-description {
-    background: white;
+    background: var(--color-bg-card);
     padding: 20px;
-    border-radius: 10px;
-    margin-bottom: 25px;
-    border-left: 4px solid #2196f3;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-lg);
+    border-left: 3px solid var(--color-primary);
 }
 
 .step2-description h4 {
     margin: 0 0 10px 0;
-    color: #1976d2;
-    font-size: 1.1em;
+    color: var(--color-text);
+    font-size: var(--font-base);
 }
 
 .step2-description p {
-    margin: 8px 0;
-    color: #666;
-    line-height: 1.5;
+    margin: var(--space-sm) 0;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+    font-size: var(--font-base);
 }
 
 .process-steps {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 15px;
+    gap: var(--space-md);
     margin: 20px 0;
 }
 
 .process-step {
-    background: white;
-    padding: 15px;
-    border-radius: 8px;
+    background: var(--color-bg-card);
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
     text-align: center;
-    border: 2px solid #e3f2fd;
-    transition: all 0.3s;
+    border: 1px solid var(--color-border);
+    transition: all 0.2s;
 }
 
 .process-step:hover {
-    border-color: #2196f3;
-    transform: translateY(-2px);
+    border-color: var(--color-primary);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
 
 .process-step-number {
-    background: #2196f3;
+    background: var(--color-primary);
     color: white;
     width: 24px;
     height: 24px;
@@ -179,334 +375,551 @@ h2 {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto 8px;
-    font-weight: bold;
-    font-size: 14px;
+    margin: 0 auto var(--space-sm);
+    font-weight: 600;
+    font-size: var(--font-base);
 }
 
 .process-step-title {
     font-weight: 600;
-    color: #333;
-    font-size: 13px;
-    margin-bottom: 5px;
+    color: var(--color-text);
+    font-size: var(--font-sm);
+    margin-bottom: var(--space-xs);
 }
 
 .process-step-desc {
-    font-size: 11px;
-    color: #666;
-    line-height: 1.3;
+    font-size: var(--font-xs);
+    color: var(--color-text-muted);
+    line-height: 1.4;
 }
 
 .upload-section {
-    background: white;
-    border-radius: 12px;
-    padding: 25px;
-    border: 2px dashed #2196f3;
+    background: var(--color-bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    border: 2px dashed var(--color-border);
     text-align: center;
-    transition: all 0.3s;
+    transition: all 0.2s;
     cursor: pointer;
-    position: relative;
-    overflow: hidden;
 }
 
-.upload-section:hover {
-    background-color: #f8f9ff;
-    border-color: #1976d2;
-    transform: translateY(-2px);
+.upload-section:hover,
+.upload-section.dragover {
+    background-color: var(--color-primary-light);
+    border-color: var(--color-primary);
 }
 
 .upload-section.uploaded {
-    border-color: #4CAF50;
-    background-color: #f1f8e9;
+    border-color: var(--color-success);
+    background-color: var(--color-success-light);
     border-style: solid;
 }
 
 .upload-icon {
-    font-size: 3em;
-    color: #2196f3;
-    margin-bottom: 15px;
-    transition: all 0.3s;
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-md);
+    transition: color 0.2s;
+}
+
+.upload-icon svg {
+    width: 36px;
+    height: 36px;
 }
 
 .upload-section:hover .upload-icon {
-    transform: scale(1.1);
+    color: var(--color-primary);
 }
 
 .uploaded .upload-icon {
-    color: #4CAF50;
+    color: var(--color-success);
 }
 
 .upload-title {
-    font-size: 1.2em;
+    font-size: var(--font-md);
     font-weight: 600;
-    color: #333;
-    margin-bottom: 8px;
+    color: var(--color-text);
+    margin-bottom: var(--space-sm);
 }
 
 .upload-subtitle {
-    color: #666;
-    margin-bottom: 15px;
-    font-size: 14px;
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-md);
+    font-size: var(--font-base);
 }
 
 .file-status {
-    background: #e3f2fd;
-    padding: 8px 15px;
+    background: var(--color-bg);
+    padding: 6px 14px;
     border-radius: 20px;
     display: inline-block;
-    font-size: 12px;
-    color: #1976d2;
+    font-size: var(--font-sm);
+    color: var(--color-text-secondary);
     font-weight: 500;
 }
 
 .uploaded .file-status {
-    background: #c8e6c9;
-    color: #2e7d32;
+    background: var(--color-success-light);
+    color: var(--color-success);
+}
+
+.template-actions {
+    margin-top: 20px;
+    text-align: center;
 }
 
 .skip-section {
-    background: #fff8e1;
-    border: 1px solid #ffcc02;
-    border-radius: 10px;
-    padding: 15px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
     margin-top: 20px;
     text-align: center;
 }
 
 .skip-section h4 {
-    margin: 0 0 8px 0;
-    color: #f57c00;
-    font-size: 1em;
+    margin: 0 0 var(--space-sm) 0;
+    color: var(--color-text-secondary);
+    font-size: var(--font-base);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.skip-section h4 svg {
+    width: 16px;
+    height: 16px;
 }
 
 .skip-section p {
     margin: 0;
-    color: #ef6c00;
-    font-size: 13px;
+    color: var(--color-text-muted);
+    font-size: var(--font-sm);
 }
 
-/* 기능 선택 스타일 */
-.features-grid .feature-option label:hover {
-    border-color: #007bff;
-    background-color: #f8f9ff;
-    transform: translateY(-1px);
+/* ===== 기능 선택 스타일 ===== */
+#features-selection-container {
+    margin: var(--space-lg) 0;
+    text-align: left;
 }
 
-.features-grid .feature-option input:checked + div {
-    opacity: 1;
+.section-label {
+    font-weight: 600;
+    margin-bottom: var(--space-md);
+    display: block;
+    color: var(--color-text);
+    font-size: var(--font-base);
 }
 
-.features-grid .feature-option input:not(:checked) + div {
-    opacity: 0.6;
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-md);
+    margin-bottom: 20px;
 }
 
-.features-grid .feature-option input:checked {
-    accent-color: #007bff;
+.feature-option label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: var(--space-md);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: none;
 }
 
-.features-grid .feature-option label {
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+.feature-option label:hover {
+    border-color: var(--color-primary);
+    background-color: var(--color-primary-light);
 }
 
-.features-grid .feature-option input:checked + div .feature-title {
-    color: #007bff;
-    font-weight: 700;
+.feature-option label:has(input:checked) {
+    border-color: var(--color-primary);
+    background-color: var(--color-primary-light);
 }
 
-/* 버튼 스타일 */
+.feature-option input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--color-primary);
+}
+
+.feature-option .feature-icon {
+    display: flex;
+    align-items: center;
+    color: var(--color-text-muted);
+}
+
+.feature-option .feature-icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+.feature-option label:has(input:checked) .feature-icon {
+    color: var(--color-primary);
+}
+
+.feature-title {
+    font-weight: 600;
+    color: var(--color-text);
+    font-size: var(--font-base);
+}
+
+.feature-desc {
+    font-size: var(--font-sm);
+    color: var(--color-text-muted);
+}
+
+.feature-option input:checked + .feature-icon + div .feature-title,
+.feature-option input:checked ~ div .feature-title {
+    color: var(--color-primary);
+}
+
+.feature-option input:not(:checked) + .feature-icon + div,
+.feature-option input:not(:checked) ~ div {
+    opacity: 0.5;
+}
+
+/* ===== 버튼 스타일 ===== */
 button {
     width: 100%;
-    padding: 15px;
+    padding: 14px;
     border: none;
     color: white;
-    border-radius: 8px;
-    font-size: 18px;
-    font-weight: bold;
-    transition: all 0.3s;
-    margin-top: 15px;
+    border-radius: var(--radius-md);
+    font-size: var(--font-md);
+    font-weight: 600;
+    transition: all 0.2s;
+    margin-top: var(--space-md);
+    cursor: pointer;
+    position: relative;
 }
 
 button:disabled {
-    background: linear-gradient(45deg, #6c757d, #5a6268);
+    background: var(--color-text-muted);
     cursor: not-allowed;
-    opacity: 0.6;
+    opacity: 0.5;
+}
+
+button:disabled[data-disabled-reason]::after {
+    content: attr(data-disabled-reason);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--color-text);
+    color: white;
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-sm);
+    font-weight: 400;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    z-index: 10;
+}
+
+button:disabled[data-disabled-reason]:hover::after {
+    opacity: 1;
 }
 
 #template-gen-button {
-    background: linear-gradient(45deg, #17a2b8, #138496);
+    background: var(--color-primary);
+}
+
+#template-gen-button:not(:disabled):hover {
+    background: var(--color-primary-dark);
 }
 
 #generate-button {
-    background: linear-gradient(45deg, #28a745, #218838);
+    background: var(--color-success);
 }
 
-button:not(:disabled):hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+#generate-button:not(:disabled):hover {
+    background: #15803d;
+}
+
+#redownload-template-button {
+    background: var(--color-purple);
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--font-base);
+    cursor: pointer;
+    transition: all 0.2s;
+    width: auto;
 }
 
 #redownload-template-button:not(:disabled):hover {
-    background: linear-gradient(45deg, #5a2d91, #4c256b) !important;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    background: var(--color-purple-dark);
 }
 
+button:not(:disabled):hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+
+/* ===== 상태 메시지 ===== */
 #status {
     margin-top: 20px;
-    font-size: 16px;
-    color: #6c757d;
+    font-size: var(--font-base);
+    color: var(--color-text-secondary);
     min-height: 20px;
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+    border-left: 3px solid var(--color-border);
+    text-align: left;
+    transition: all 0.3s;
 }
 
+#status.status-success {
+    background: var(--color-success-light);
+    border-left-color: var(--color-success);
+    color: #166534;
+}
+
+#status.status-error {
+    background: var(--color-danger-light);
+    border-left-color: var(--color-danger);
+    color: #991b1b;
+}
+
+#status.status-progress {
+    background: var(--color-primary-light);
+    border-left-color: var(--color-primary);
+    color: #1e40af;
+}
+
+/* ===== 제목 입력 ===== */
 #timetable-title-container {
     margin: 30px 0;
     text-align: left;
 }
 
 #timetable-title-container label {
-    font-weight: bold;
+    font-weight: 600;
     margin-bottom: 10px;
     display: block;
-    color: #333;
+    color: var(--color-text);
+    font-size: var(--font-base);
 }
 
 #timetable-title {
     width: 100%;
     padding: 12px;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    font-size: 16px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-md);
+    box-sizing: border-box;
+    transition: border-color 0.2s;
 }
 
-/* 테마 선택 스타일 */
+#timetable-title:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* ===== 테마 선택 스타일 ===== */
+#theme-selection-container {
+    margin: 30px 0;
+    text-align: left;
+}
+
+.theme-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: var(--space-md);
+    margin-bottom: 20px;
+}
+
 .theme-option {
     text-align: center;
     cursor: pointer;
     padding: 10px;
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     border: 2px solid transparent;
-    transition: all 0.3s ease;
-    background: white;
+    transition: all 0.2s;
+    background: var(--color-bg);
 }
 
 .theme-option:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    border-color: var(--color-border);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
 
 .theme-option.selected {
-    border-color: #007bff;
-    background: #f8f9ff;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0,123,255,0.2);
+    border-color: var(--color-primary);
+    background: var(--color-primary-light);
 }
 
 .theme-name {
-    font-size: 12px;
+    font-size: var(--font-sm);
     font-weight: 600;
-    color: #333;
-    margin-top: 5px;
+    color: var(--color-text);
+    margin-top: var(--space-xs);
 }
 
 .theme-preview {
-    position: relative;
-    overflow: hidden;
+    height: 40px;
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-sm);
 }
 
-.theme-preview::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(45deg, transparent 49%, rgba(255,255,255,0.3) 50%, transparent 51%);
-    animation: shimmer 2s infinite;
+/* ===== 토스트 알림 ===== */
+#toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
-/* 애니메이션 */
+.toast {
+    padding: 14px 20px;
+    border-radius: var(--radius-md);
+    color: white;
+    font-size: var(--font-base);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    animation: slideIn 0.3s ease-out;
+    max-width: 400px;
+}
+
+.toast.error { background: var(--color-danger); }
+.toast.success { background: var(--color-success); }
+.toast.warning { background: var(--color-warning); }
+.toast.info { background: var(--color-primary); }
+
+/* ===== 로딩 오버레이 ===== */
+.loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(255,255,255,0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    gap: var(--space-md);
+}
+
+.spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid var(--color-border);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+
+.loading-text {
+    font-size: var(--font-base);
+    color: var(--color-text-secondary);
+    font-weight: 500;
+}
+
+/* ===== 애니메이션 ===== */
 @keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.7; }
-    100% { opacity: 1; }
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
 }
 
-@keyframes shimmer {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }
 
-/* 모바일 반응형 스타일 */
+/* ===== 모바일 반응형 스타일 ===== */
 @media (max-width: 768px) {
     .features-grid {
-        grid-template-columns: 1fr !important;
+        grid-template-columns: 1fr;
         gap: 10px;
     }
-    
-    .features-grid .feature-option label {
+
+    .feature-option label {
         padding: 12px;
-        font-size: 14px;
+        font-size: var(--font-base);
     }
-    
+
     .theme-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(3, 1fr);
         gap: 10px;
     }
-    
+
     .theme-option {
-        padding: 8px;
+        padding: var(--space-sm);
     }
-    
+
     .theme-preview {
-        height: 35px;
+        height: 32px;
     }
-    
+
     .theme-name {
-        font-size: 11px;
+        font-size: var(--font-xs);
     }
-    
+
     body {
         padding: 10px;
     }
-    
+
     #app-container {
         max-width: 100%;
         padding: 20px;
     }
-    
+
     .upload-grid {
         grid-template-columns: 1fr;
-        gap: 15px;
+        gap: var(--space-md);
     }
-    
+
     .process-steps {
         grid-template-columns: 1fr;
         gap: 10px;
     }
-    
+
     h1 {
-        font-size: 1.5em;
+        font-size: 1.3em;
         margin-bottom: 20px;
     }
-    
+
     button {
-        font-size: 16px;
+        font-size: var(--font-base);
         padding: 12px;
     }
-    
+
     #timetable-title {
-        font-size: 14px;
+        font-size: var(--font-base);
         padding: 10px;
+    }
+
+    .step-indicator {
+        gap: 0;
+    }
+
+    .step-connector {
+        width: 30px;
+    }
+
+    .step-label {
+        font-size: var(--font-xs);
+    }
+
+    #toast-container {
+        left: 10px;
+        right: 10px;
+    }
+
+    .toast {
+        max-width: 100%;
     }
 }

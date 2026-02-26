@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>선택과목정보 템플릿 자동 채움</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --bg: #f4f6fa;
+            --panel: #ffffff;
+            --surface: #eef3ff;
+            --primary: #2563eb;
+            --primary-soft: #dbe8ff;
+            --text: #1f2937;
+            --muted: #64748b;
+            --border: #d7deea;
+            --success: #15803d;
+            --error: #b91c1c;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 24px 14px;
+            font-family: "Pretendard Variable", "Noto Sans KR", sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at 12% 10%, #ffffff 0%, transparent 40%),
+                linear-gradient(160deg, #f9fbff 0%, var(--bg) 100%);
+        }
+
+        .container {
+            width: min(980px, 100%);
+            margin: 0 auto;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 28px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.75rem;
+            line-height: 1.25;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            margin-top: 10px;
+            color: var(--muted);
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        .layout {
+            margin-top: 22px;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .uploader {
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: var(--surface);
+            padding: 16px;
+        }
+
+        .uploader h2 {
+            margin: 0;
+            font-size: 15px;
+            letter-spacing: -0.01em;
+        }
+
+        .uploader .guide {
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .uploader .status {
+            margin-top: 10px;
+            border: 1px solid var(--border);
+            background: #fff;
+            border-radius: 10px;
+            padding: 10px;
+            min-height: 44px;
+            font-size: 13px;
+            color: var(--muted);
+            word-break: break-all;
+        }
+
+        .uploader input[type="file"] {
+            margin-top: 10px;
+            width: 100%;
+            font-size: 13px;
+        }
+
+        .actions {
+            margin-top: 16px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            background: #fff;
+            color: var(--text);
+        }
+
+        button.primary {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #fff;
+        }
+
+        button:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
+        .result {
+            margin-top: 14px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            background: #fff;
+            font-size: 13px;
+            line-height: 1.5;
+            color: var(--muted);
+            min-height: 52px;
+            white-space: pre-line;
+        }
+
+        .result.success {
+            color: var(--success);
+            border-color: #b7e0c2;
+            background: #f3fbf5;
+        }
+
+        .result.error {
+            color: var(--error);
+            border-color: #f0c2c2;
+            background: #fff6f6;
+        }
+
+        .hint {
+            margin-top: 10px;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        @media (max-width: 760px) {
+            .container {
+                padding: 16px 14px;
+                border-radius: 14px;
+            }
+            .layout {
+                grid-template-columns: 1fr;
+            }
+            h1 {
+                font-size: 1.4rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <h1>선택과목정보 템플릿 자동 채움 (index2)</h1>
+        <div class="subtitle">
+            업로드 2개:
+            `선택과목정보_템플릿.xlsx(수업교실/수업교사명 빈 양식)` + `전체시간표.xlsx`
+            <br>
+            전체시간표에서 `선택반_과목명` 패턴을 찾아 템플릿의 `수업시간/수업교실/수업교사명`을 채웁니다.
+        </div>
+
+        <section class="layout">
+            <article class="uploader">
+                <h2>1) 선택과목정보 템플릿</h2>
+                <div class="guide">필수 컬럼: 학년 / 선택반명 / 교과명 / 수업교실 / 수업교사명 / 수업시간</div>
+                <input id="template-file" type="file" accept=".xlsx,.xls">
+                <div class="status" id="template-status">파일 대기 중</div>
+            </article>
+
+            <article class="uploader">
+                <h2>2) 전체시간표 양식</h2>
+                <div class="guide">A열=학급(1-1), 2행=요일(병합 가능), 3행=교시, 셀=`선택반_과목명` + 줄내림 + 교사명</div>
+                <input id="master-file" type="file" accept=".xlsx,.xls">
+                <div class="status" id="master-status">파일 대기 중</div>
+            </article>
+        </section>
+
+        <section class="actions">
+            <button class="primary" id="run-btn" disabled>자동 채우기 후 다운로드</button>
+            <button id="reset-btn">초기화</button>
+        </section>
+
+        <section id="result" class="result">파일 2개를 모두 업로드하면 실행할 수 있습니다.</section>
+        <div class="hint">
+            매칭 키: `학년 + 선택반명 + 교과명` (교과명은 공백/괄호 제거 후 비교).<br>
+            동일 키가 여러 번 나오면 수업시간은 합쳐지고, 학급/교사는 중복 제거 후 쉼표로 합쳐집니다.
+        </div>
+    </main>
+
+    <script>
+        const state = {
+            templateWorkbook: null,
+            templateSheetName: null,
+            templateWorksheet: null,
+            templateFileName: '',
+            masterWorksheet: null,
+            masterFileName: ''
+        };
+
+        const templateInput = document.getElementById('template-file');
+        const masterInput = document.getElementById('master-file');
+        const runBtn = document.getElementById('run-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const templateStatus = document.getElementById('template-status');
+        const masterStatus = document.getElementById('master-status');
+        const resultBox = document.getElementById('result');
+
+        const DAYS = ['월', '화', '수', '목', '금'];
+        const DAY_ORDER = { 월: 1, 화: 2, 수: 3, 목: 4, 금: 5 };
+
+        function normalizeGrade(value) {
+            const match = String(value || '').match(/\\d+/);
+            return match ? match[0] : '';
+        }
+
+        function normalizeGroup(value) {
+            return String(value || '').replace(/\\s+/g, '').replace(/반$/, '').toUpperCase();
+        }
+
+        function normalizeSubject(value) {
+            return String(value || '')
+                .replace(/\\([^)]*\\)/g, '')
+                .replace(/[\\s·ㆍ]/g, '')
+                .replace(/^_+|_+$/g, '')
+                .toLowerCase();
+        }
+
+        function normalizeClassLabel(value) {
+            const match = String(value || '').trim().match(/^(\\d+)\\s*-\\s*(\\d+)$/);
+            if (!match) return null;
+            return `${match[1]}-${match[2]}`;
+        }
+
+        function makeKey(grade, group, subject) {
+            return `${normalizeGrade(grade)}|${normalizeGroup(group)}|${normalizeSubject(subject)}`;
+        }
+
+        function decodeRange(ws) {
+            const ref = ws && ws['!ref'] ? ws['!ref'] : 'A1:A1';
+            return XLSX.utils.decode_range(ref);
+        }
+
+        function buildMergeAnchorMap(ws) {
+            const map = new Map();
+            const merges = ws['!merges'] || [];
+            merges.forEach(merge => {
+                for (let r = merge.s.r; r <= merge.e.r; r++) {
+                    for (let c = merge.s.c; c <= merge.e.c; c++) {
+                        map.set(`${r},${c}`, `${merge.s.r},${merge.s.c}`);
+                    }
+                }
+            });
+            return map;
+        }
+
+        function getCellText(ws, mergeMap, row, col) {
+            const addr = XLSX.utils.encode_cell({ r: row, c: col });
+            let cell = ws[addr];
+            if (!cell) {
+                const anchor = mergeMap.get(`${row},${col}`);
+                if (anchor) {
+                    const [ar, ac] = anchor.split(',').map(Number);
+                    cell = ws[XLSX.utils.encode_cell({ r: ar, c: ac })];
+                }
+            }
+            if (!cell || cell.v === undefined || cell.v === null) return '';
+            return String(cell.v).replace(/\\u00A0/g, ' ').trim();
+        }
+
+        function setCellValue(ws, row, col, value) {
+            const addr = XLSX.utils.encode_cell({ r: row, c: col });
+            ws[addr] = { t: 's', v: String(value || '') };
+        }
+
+        async function readWorkbookFromFile(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            return XLSX.read(arrayBuffer, { type: 'array' });
+        }
+
+        function updateRunState() {
+            runBtn.disabled = !(state.templateWorkbook && state.masterWorksheet);
+        }
+
+        function setResult(message, type = '') {
+            resultBox.className = `result ${type}`.trim();
+            resultBox.textContent = message;
+        }
+
+        function parseElectiveCell(cellText) {
+            const normalized = String(cellText || '').replace(/\\r/g, '\\n').trim();
+            if (!normalized) return null;
+
+            const lines = normalized.split('\\n').map(line => line.trim()).filter(Boolean);
+            if (lines.length === 0) return null;
+
+            let subjectLine = lines[0].replace(/^\\((.*)\\)$/,'$1').trim();
+            let teacherLine = lines.length > 1 ? lines.slice(1).join(' ').trim() : '';
+
+            const subjectMatch = subjectLine.match(/^([A-Za-z0-9가-힣]+)\\s*[_-]\\s*(.+)$/);
+            if (!subjectMatch) return null;
+
+            const group = subjectMatch[1].trim();
+            const subject = subjectMatch[2].trim();
+
+            if (!teacherLine) {
+                const teacherInLine = subject.match(/(.+?)\\s+([가-힣]{2,4})(?:\\(\\d+\\))?$/);
+                if (teacherInLine) {
+                    teacherLine = teacherInLine[2];
+                }
+            }
+
+            teacherLine = String(teacherLine || '').replace(/\\(\\d+\\)/g, '').trim();
+
+            return { group, subject, teacher: teacherLine };
+        }
+
+        function buildElectiveIndexFromMaster(ws) {
+            const mergeMap = buildMergeAnchorMap(ws);
+            const range = decodeRange(ws);
+            const slotByCol = {};
+
+            let currentDay = '';
+            for (let col = 1; col <= range.e.c; col++) {
+                const dayRaw = getCellText(ws, mergeMap, 1, col);
+                if (DAYS.includes(dayRaw)) {
+                    currentDay = dayRaw;
+                }
+
+                const periodRaw = getCellText(ws, mergeMap, 2, col);
+                const periodMatch = periodRaw.match(/\\d+/);
+                if (currentDay && periodMatch) {
+                    slotByCol[col] = {
+                        day: currentDay,
+                        period: parseInt(periodMatch[0], 10)
+                    };
+                }
+            }
+
+            const index = new Map();
+
+            for (let row = 3; row <= range.e.r; row++) {
+                const classLabel = normalizeClassLabel(getCellText(ws, mergeMap, row, 0));
+                if (!classLabel) continue;
+
+                const grade = normalizeGrade(classLabel);
+                if (!grade) continue;
+
+                Object.keys(slotByCol).forEach(colKey => {
+                    const col = parseInt(colKey, 10);
+                    const slot = slotByCol[col];
+                    const rawCell = getCellText(ws, mergeMap, row, col);
+                    if (!rawCell) return;
+
+                    const parsed = parseElectiveCell(rawCell);
+                    if (!parsed) return;
+
+                    const key = makeKey(grade, parsed.group, parsed.subject);
+                    if (!index.has(key)) {
+                        index.set(key, {
+                            times: new Set(),
+                            classrooms: new Set(),
+                            teachers: new Set()
+                        });
+                    }
+
+                    const record = index.get(key);
+                    record.times.add(`${slot.day}${slot.period}`);
+                    record.classrooms.add(classLabel);
+                    if (parsed.teacher) {
+                        record.teachers.add(parsed.teacher);
+                    }
+                });
+            }
+
+            return index;
+        }
+
+        function sortTimes(timeSet) {
+            return Array.from(timeSet).sort((a, b) => {
+                const dayA = DAY_ORDER[a[0]] || 99;
+                const dayB = DAY_ORDER[b[0]] || 99;
+                if (dayA !== dayB) return dayA - dayB;
+                const pa = parseInt(a.slice(1), 10) || 0;
+                const pb = parseInt(b.slice(1), 10) || 0;
+                return pa - pb;
+            });
+        }
+
+        function sortNatural(setValues) {
+            return Array.from(setValues).sort((a, b) => a.localeCompare(b, 'ko', { numeric: true }));
+        }
+
+        function detectTemplateColumns(aoa) {
+            const normalizeHeader = (value) => String(value || '').replace(/\\s+/g, '');
+            let best = null;
+
+            for (let r = 0; r < Math.min(20, aoa.length); r++) {
+                const row = aoa[r] || [];
+                const columns = {};
+
+                row.forEach((cell, c) => {
+                    const h = normalizeHeader(cell);
+                    if (h === '학년') columns.grade = c;
+                    if (h === '선택반명') columns.group = c;
+                    if (h === '교과명') columns.subject = c;
+                    if (h === '수업교실') columns.classroom = c;
+                    if (h === '수업교사명') columns.teacher = c;
+                    if (h === '수업시간') columns.time = c;
+                });
+
+                const score = Object.keys(columns).length;
+                const required = columns.grade !== undefined && columns.group !== undefined && columns.subject !== undefined;
+                if (!required) continue;
+
+                if (!best || score > best.score) {
+                    best = { headerRow: r, columns, score };
+                }
+            }
+
+            return best;
+        }
+
+        function fillTemplateWithIndex(ws, index) {
+            const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+            const structure = detectTemplateColumns(aoa);
+            if (!structure) {
+                throw new Error('템플릿 헤더를 찾지 못했습니다. (학년/선택반명/교과명 필요)');
+            }
+
+            const { headerRow, columns } = structure;
+            let totalRows = 0;
+            let matchedRows = 0;
+
+            for (let r = headerRow + 1; r < aoa.length; r++) {
+                const row = aoa[r] || [];
+                const grade = row[columns.grade];
+                const group = row[columns.group];
+                const subject = row[columns.subject];
+
+                if (!grade || !group || !subject) continue;
+                totalRows += 1;
+
+                const key = makeKey(grade, group, subject);
+                const info = index.get(key);
+                if (!info) continue;
+
+                const timeText = sortTimes(info.times).join(',');
+                const classroomText = sortNatural(info.classrooms).join(', ');
+                const teacherText = sortNatural(info.teachers).join(', ');
+
+                if (columns.time !== undefined) setCellValue(ws, r, columns.time, timeText);
+                if (columns.classroom !== undefined) setCellValue(ws, r, columns.classroom, classroomText);
+                if (columns.teacher !== undefined) setCellValue(ws, r, columns.teacher, teacherText);
+
+                matchedRows += 1;
+            }
+
+            return { totalRows, matchedRows };
+        }
+
+        function createOutputFileName(sourceName) {
+            const clean = String(sourceName || '선택과목정보_템플릿.xlsx');
+            const withoutExt = clean.replace(/\\.[^.]+$/, '');
+            return `${withoutExt}_자동채움.xlsx`;
+        }
+
+        templateInput.addEventListener('change', async (event) => {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+
+            try {
+                const wb = await readWorkbookFromFile(file);
+                const sheetName = wb.SheetNames[0];
+                const ws = wb.Sheets[sheetName];
+
+                state.templateWorkbook = wb;
+                state.templateSheetName = sheetName;
+                state.templateWorksheet = ws;
+                state.templateFileName = file.name;
+
+                templateStatus.textContent = `업로드 완료: ${file.name}`;
+                setResult('템플릿 파일을 확인했습니다. 전체시간표 파일도 업로드해주세요.');
+                updateRunState();
+            } catch (error) {
+                state.templateWorkbook = null;
+                state.templateWorksheet = null;
+                templateStatus.textContent = '템플릿 파일 읽기 실패';
+                setResult(`템플릿 파일 오류: ${error.message}`, 'error');
+                updateRunState();
+            }
+        });
+
+        masterInput.addEventListener('change', async (event) => {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+
+            try {
+                const wb = await readWorkbookFromFile(file);
+                const sheetName = wb.SheetNames[0];
+                const ws = wb.Sheets[sheetName];
+
+                state.masterWorksheet = ws;
+                state.masterFileName = file.name;
+
+                masterStatus.textContent = `업로드 완료: ${file.name}`;
+                setResult('전체시간표 파일을 확인했습니다. 템플릿 파일도 업로드해주세요.');
+                updateRunState();
+            } catch (error) {
+                state.masterWorksheet = null;
+                masterStatus.textContent = '전체시간표 파일 읽기 실패';
+                setResult(`전체시간표 파일 오류: ${error.message}`, 'error');
+                updateRunState();
+            }
+        });
+
+        runBtn.addEventListener('click', () => {
+            if (!state.templateWorkbook || !state.templateWorksheet || !state.masterWorksheet) {
+                setResult('파일 2개를 먼저 업로드해주세요.', 'error');
+                return;
+            }
+
+            try {
+                const index = buildElectiveIndexFromMaster(state.masterWorksheet);
+                const summary = fillTemplateWithIndex(state.templateWorksheet, index);
+
+                XLSX.writeFile(state.templateWorkbook, createOutputFileName(state.templateFileName));
+
+                const unmatched = summary.totalRows - summary.matchedRows;
+                setResult(
+                    `완료: ${summary.matchedRows}/${summary.totalRows}개 행 매칭\n` +
+                    `미매칭: ${unmatched}개\n` +
+                    `다운로드: ${createOutputFileName(state.templateFileName)}`,
+                    'success'
+                );
+            } catch (error) {
+                setResult(`자동 채움 실패: ${error.message}`, 'error');
+            }
+        });
+
+        resetBtn.addEventListener('click', () => {
+            state.templateWorkbook = null;
+            state.templateSheetName = null;
+            state.templateWorksheet = null;
+            state.templateFileName = '';
+            state.masterWorksheet = null;
+            state.masterFileName = '';
+
+            templateInput.value = '';
+            masterInput.value = '';
+            templateStatus.textContent = '파일 대기 중';
+            masterStatus.textContent = '파일 대기 중';
+            setResult('파일 2개를 모두 업로드하면 실행할 수 있습니다.');
+            updateRunState();
+        });
+    </script>
+</body>
+</html>

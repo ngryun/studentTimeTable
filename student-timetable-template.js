@@ -58,281 +58,542 @@ const themes = {
     }
 };
 
+function clampColorChannel(value) {
+    return Math.max(0, Math.min(255, Math.round(value)));
+}
+
+function normalizeHexColor(hexColor) {
+    const source = String(hexColor || '').trim().replace('#', '');
+    if (source.length === 3) {
+        return source.split('').map(ch => ch + ch).join('');
+    }
+    if (source.length === 6) {
+        return source;
+    }
+    return '92A8D1';
+}
+
+function hexToRgb(hexColor) {
+    const normalized = normalizeHexColor(hexColor);
+    return {
+        r: parseInt(normalized.slice(0, 2), 16),
+        g: parseInt(normalized.slice(2, 4), 16),
+        b: parseInt(normalized.slice(4, 6), 16)
+    };
+}
+
+function rgbToHex(rgb) {
+    return '#' + [rgb.r, rgb.g, rgb.b]
+        .map(channel => clampColorChannel(channel).toString(16).padStart(2, '0'))
+        .join('');
+}
+
+function mixColors(colorA, colorB, weightA = 0.5) {
+    const first = hexToRgb(colorA);
+    const second = hexToRgb(colorB);
+    const w = Math.max(0, Math.min(1, weightA));
+
+    return rgbToHex({
+        r: first.r * w + second.r * (1 - w),
+        g: first.g * w + second.g * (1 - w),
+        b: first.b * w + second.b * (1 - w)
+    });
+}
+
+function withAlpha(color, alpha = 1) {
+    const rgb = hexToRgb(color);
+    const clampedAlpha = Math.max(0, Math.min(1, alpha));
+    return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${clampedAlpha})`;
+}
+
+function getRelativeLuminance(color) {
+    const rgb = hexToRgb(color);
+    const transform = (channel) => {
+        const normalized = channel / 255;
+        return normalized <= 0.03928
+            ? normalized / 12.92
+            : Math.pow((normalized + 0.055) / 1.055, 2.4);
+    };
+
+    const r = transform(rgb.r);
+    const g = transform(rgb.g);
+    const b = transform(rgb.b);
+
+    return (0.2126 * r) + (0.7152 * g) + (0.0722 * b);
+}
+
 // CSS 스타일 생성 함수
 function generateTimetableCSS(selectedTheme = 'serenity') {
     const currentTheme = themes[selectedTheme] || themes['serenity'];
+    const basePrimary = currentTheme.primary || '#92A8D1';
+    const basePrimaryLight = currentTheme.primaryLight || '#B8CAE6';
+    const baseAccent = currentTheme.accent || '#D1E2F7';
+    const baseBackground = currentTheme.background || '#F7FAFC';
+    const baseCard = currentTheme.cardBg || '#FFFFFF';
+    const baseHeader = currentTheme.headerBg || basePrimary;
+
+    const backgroundColor = mixColors(baseBackground, '#ffffff', 0.85);
+    const cardBackground = mixColors(baseCard, '#ffffff', 0.94);
+    const surfaceSoft = mixColors(baseAccent, '#ffffff', 0.64);
+    const headerBg = mixColors(baseHeader, '#ffffff', 0.82);
+    const headerText = getRelativeLuminance(headerBg) > 0.58 ? '#1f2937' : '#ffffff';
+    const textColor = mixColors(basePrimary, '#0f172a', 0.22);
+    const subtleText = mixColors(basePrimary, '#64748b', 0.22);
+    const borderColor = mixColors(basePrimary, '#cbd5e1', 0.24);
+    const lineSoft = mixColors(borderColor, '#ffffff', 0.52);
+    const rowAlt = mixColors(surfaceSoft, '#ffffff', 0.3);
+    const rowHover = mixColors(basePrimaryLight, '#ffffff', 0.36);
+    const emptyBg = mixColors(surfaceSoft, '#ffffff', 0.46);
+    const panelBorder = withAlpha(basePrimary, 0.25);
+    const tabHoverBg = withAlpha(basePrimaryLight, 0.16);
+    const modalBackdrop = withAlpha(basePrimary, 0.32);
+    const chipBg = mixColors(basePrimaryLight, '#ffffff', 0.34);
+    const chipBorder = mixColors(basePrimary, '#d5dfeb', 0.3);
+    const chipText = mixColors(basePrimary, '#334155', 0.35);
+    const teacherChipBg = mixColors(baseAccent, '#ffffff', 0.4);
+    const teacherChipBorder = mixColors(basePrimary, '#d8dee8', 0.25);
+    const teacherChipText = mixColors(basePrimary, '#475569', 0.3);
+    const modalTop = mixColors(baseBackground, '#ffffff', 0.78);
+    const modalBottom = mixColors(baseCard, '#ffffff', 0.96);
+    const bodyGlowA = withAlpha(basePrimaryLight, 0.3);
+    const bodyGlowB = withAlpha(basePrimary, 0.14);
+    const bodyGradientStart = mixColors(baseBackground, '#ffffff', 0.9);
+    const bodyGradientEnd = mixColors(baseAccent, '#ffffff', 0.72);
+    const containerBg = withAlpha(cardBackground, 0.92);
+    const tabHoverBorder = withAlpha(basePrimary, 0.2);
+    const activeBorder = withAlpha(basePrimary, 0.34);
     
     return `
-        :root { 
-            --primary-color: ${currentTheme.primary}; 
-            --primary-light: ${currentTheme.primaryLight}; 
-            --accent-color: ${currentTheme.accent};
-            --background-color: ${currentTheme.background}; 
-            --card-background: ${currentTheme.cardBg}; 
-            --header-bg: ${currentTheme.headerBg};
-            --header-text: ${currentTheme.headerText};
-            --text-color: #2D3748; 
-            --subtle-text: #718096; 
-            --border-color: #E2E8F0; 
+        :root {
+            --primary-color: ${basePrimary};
+            --primary-light: ${basePrimaryLight};
+            --accent-color: ${baseAccent};
+            --background-color: ${backgroundColor};
+            --card-background: ${cardBackground};
+            --surface-soft: ${surfaceSoft};
+            --header-bg: ${headerBg};
+            --header-text: ${headerText};
+            --text-color: ${textColor};
+            --subtle-text: ${subtleText};
+            --border-color: ${borderColor};
+            --line-soft: ${lineSoft};
+            --empty-bg: ${emptyBg};
+            --row-alt: ${rowAlt};
+            --row-hover: ${rowHover};
+            --panel-border: ${panelBorder};
+            --tab-hover-bg: ${tabHoverBg};
+            --modal-backdrop: ${modalBackdrop};
+            --chip-bg: ${chipBg};
+            --chip-border: ${chipBorder};
+            --chip-text: ${chipText};
+            --teacher-chip-bg: ${teacherChipBg};
+            --teacher-chip-border: ${teacherChipBorder};
+            --teacher-chip-text: ${teacherChipText};
+            --modal-top: ${modalTop};
+            --modal-bottom: ${modalBottom};
+            --schedule-max-width: 980px;
         }
-        body { 
-            font-family: 'Noto Sans KR', sans-serif; 
-            margin: 0; 
-            padding: 20px; 
-            background-color: var(--background-color); 
-            color: var(--text-color); 
+        * {
+            box-sizing: border-box;
         }
-        #app-container { 
-            max-width: 1200px; 
-            margin: 20px auto; 
-            background-color: var(--card-background); 
-            padding: 40px; 
-            border-radius: 16px; 
-            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); 
+        body {
+            font-family: 'Pretendard Variable', 'Noto Sans KR', sans-serif;
+            margin: 0;
+            min-height: 100vh;
+            padding: 28px 16px;
+            color: var(--text-color);
+            background:
+                radial-gradient(circle at 8% 6%, ${bodyGlowA} 0%, transparent 44%),
+                radial-gradient(circle at 94% 0%, ${bodyGlowB} 0%, transparent 38%),
+                linear-gradient(155deg, ${bodyGradientStart} 0%, ${bodyGradientEnd} 100%);
         }
-        h1 { 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            text-align: center; 
-            font-size: 2em; 
-            margin-bottom: 30px;
+        body.modal-open {
+            overflow: hidden;
         }
-        .title-icon { 
-            height: 2.5em; 
-            margin-right: 15px; 
-            border-radius: 8px; 
-            max-width: 150px; 
-            object-fit: contain; 
+        #app-container {
+            max-width: 1240px;
+            margin: 0 auto;
+            background: ${containerBg};
+            border: 1px solid var(--panel-border);
+            border-radius: 24px;
+            backdrop-filter: blur(4px);
+            padding: 34px;
+        }
+        h1 {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 14px;
+            font-size: 2rem;
+            line-height: 1.25;
+            margin: 0 0 28px 0;
+            letter-spacing: -0.02em;
+        }
+        .title-icon {
+            height: 2.3em;
+            border-radius: 10px;
+            max-width: 150px;
+            object-fit: contain;
         }
 
-        /* 탭 네비게이션 스타일 */
         .tab-navigation {
             display: flex;
-            gap: 0;
-            margin-bottom: 30px;
-            background: var(--accent-color);
-            border-radius: 12px;
-            padding: 6px;
+            gap: 8px;
+            margin-bottom: 22px;
+            padding: 7px;
+            background: var(--surface-soft);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
             overflow-x: auto;
         }
         .tab-button {
             flex: 1;
-            padding: 12px 20px;
-            border: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 11px 14px;
+            border: 1px solid transparent;
+            border-radius: 10px;
             background: transparent;
             color: var(--text-color);
-            border-radius: 8px;
             cursor: pointer;
-            transition: all 0.3s;
-            font-weight: 500;
-            font-size: 15px;
+            transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+            font-weight: 600;
+            font-size: 14px;
             white-space: nowrap;
+        }
+        .tab-button:hover:not(.active) {
+            background: var(--tab-hover-bg);
+            border-color: ${tabHoverBorder};
         }
         .tab-button.active {
             background: var(--card-background);
+            border-color: ${activeBorder};
             color: var(--primary-color);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        .tab-button:hover:not(.active) {
-            background: rgba(255,255,255,0.5);
         }
 
-        /* 검색 섹션 스타일 */
-        #search-section { 
-            background: var(--accent-color); 
-            padding: 25px; 
-            border-radius: 12px; 
-            margin-bottom: 30px; 
+        #search-section {
+            background: var(--surface-soft);
+            border: 1px solid var(--border-color);
+            padding: 22px;
+            border-radius: 16px;
+            margin-bottom: 24px;
         }
-        .search-container { 
-            position: relative; 
-            max-width: 500px; 
-            margin: 0 auto; 
+        .search-container {
+            position: relative;
+            max-width: 560px;
+            margin: 0 auto;
         }
-        #search-input { 
-            width: 100%; 
-            padding: 15px 20px 15px 50px; 
-            border: 1px solid var(--border-color); 
-            border-radius: 12px; 
-            font-size: 16px; 
-            box-sizing: border-box; 
+        #search-input {
+            width: 100%;
+            padding: 14px 18px 14px 46px;
+            border: 1px solid var(--border-color);
+            border-radius: 999px;
+            font-size: 15px;
+            background: var(--card-background);
+            color: var(--text-color);
+            outline: none;
         }
-        .search-icon { 
-            position: absolute; 
-            left: 18px; 
-            top: 50%; 
-            transform: translateY(-50%); 
-            color: var(--subtle-text); 
+        #search-input:focus {
+            border-color: var(--primary-color);
         }
-        .autocomplete-dropdown { 
-            position: absolute; 
-            top: calc(100% + 5px); 
-            left: 0; 
-            right: 0; 
-            background: white; 
-            border: 1px solid var(--border-color); 
-            border-radius: 12px; 
-            max-height: 200px; 
-            overflow-y: auto; 
-            z-index: 1000; 
-            display: none; 
-            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); 
+        .search-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--subtle-text);
+            pointer-events: none;
         }
-        .autocomplete-item { 
-            padding: 12px 20px; 
-            cursor: pointer; 
-            border-bottom: 1px solid #f1f1f1; 
+        .autocomplete-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            background: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            max-height: 280px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
         }
-        .autocomplete-item:hover, .autocomplete-item.selected { 
-            background-color: var(--primary-light); 
-            color: white; 
+        .autocomplete-item {
+            padding: 11px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--line-soft);
+            font-size: 14px;
         }
-        .favorites-section { 
-            margin-top: 20px; 
-            text-align: center; 
+        .autocomplete-item:last-child {
+            border-bottom: 0;
         }
-        .favorites-title { 
-            font-size: 14px; 
-            color: var(--subtle-text); 
-            margin-bottom: 12px; 
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background-color: var(--surface-soft);
+            color: var(--text-color);
         }
-        .favorite-chips { 
-            display: flex; 
-            flex-wrap: wrap; 
-            gap: 10px; 
-            justify-content: center; 
+        .favorites-section {
+            margin-top: 18px;
         }
-        .favorite-chip { 
-            background: var(--card-background); 
-            padding: 8px 14px; 
-            border-radius: 20px; 
-            font-size: 14px; 
-            cursor: pointer; 
-            border: none; 
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
-        }
-
-        /* 시간표 헤더 스타일 */
-        .schedule-header { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            margin-bottom: 20px; 
-        }
-        .schedule-info h2 { 
-            margin: 0; 
-            font-size: 1.8em; 
-        }
-        .action-btn { 
-            display: inline-flex; 
-            align-items: center; 
-            gap: 8px; 
-            padding: 8px 16px; 
-            border: 1px solid var(--border-color); 
-            background: white; 
-            border-radius: 8px; 
-            cursor: pointer; 
-        }
-        .action-btn.favorited { 
-            background: #FFC107; 
-            color: white; 
-        }
-
-        /* 테이블 스타일 */
-        table { 
-            width: 100%; 
-            border-collapse: separate; 
-            border-spacing: 0; 
-            font-size: 15px; 
-            table-layout: fixed; 
-        }
-        th, td { 
-            border-bottom: 1px solid var(--border-color); 
-            text-align: center; 
-            vertical-align: middle; 
-        }
-        td { 
-            height: 80px; 
-            padding: 8px 4px; 
-            line-height: 1.5; 
-        }
-        thead th { 
-            background: var(--header-bg); 
-            color: var(--header-text); 
-            font-weight: 600; 
-            padding: 15px; 
-            border-bottom: 2px solid var(--primary-color);
-            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
-        }
-        thead th:first-child { 
-            border-top-left-radius: 8px; 
-        }
-        thead th:last-child { 
-            border-top-right-radius: 8px; 
-        }
-        tbody td { 
-            border-right: 1px solid var(--border-color); 
-        }
-        tbody tr td:first-child { 
-            border-left: 1px solid var(--border-color); 
+        .favorites-title {
+            font-size: 13px;
+            color: var(--subtle-text);
+            margin-bottom: 10px;
+            text-align: center;
             font-weight: 500;
         }
-        tbody tr:first-child td { 
-            border-top: 1px solid var(--border-color); 
+        .favorite-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+        .favorite-chip {
+            background: var(--card-background);
+            padding: 7px 12px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+        }
+        .favorite-chip:hover {
+            background: var(--surface-soft);
+            border-color: var(--primary-light);
         }
 
-        /* 빈 상태 스타일 */
-        .empty-state { 
-            text-align: center; 
-            padding: 80px 20px; 
+        .schedule-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 14px;
+            align-items: flex-end;
+            margin: 0 auto 14px;
+            width: min(100%, var(--schedule-max-width));
         }
-        .empty-state-icon { 
-            font-size: 5em; 
-            margin-bottom: 20px; 
-            opacity: 0.5; 
+        .schedule-info h2 {
+            margin: 0;
+            font-size: 1.52rem;
+            line-height: 1.3;
+            letter-spacing: -0.02em;
         }
-
-        /* 셀 내용 스타일링 */
-        td .subject-name {
+        .schedule-info h2 small {
+            color: var(--subtle-text);
+            font-size: 0.78em;
+            font-weight: 500;
+        }
+        .schedule-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .action-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            padding: 9px 13px;
+            border: 1px solid var(--border-color);
+            background: var(--card-background);
+            color: var(--text-color);
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 13px;
             font-weight: 600;
-            font-size: 1em;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+        }
+        .action-btn:hover {
+            background: var(--surface-soft);
+            border-color: var(--primary-light);
+        }
+        .action-btn.favorited {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            color: #fff;
+        }
+
+        .table-container {
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            overflow: auto;
+            background: var(--card-background);
+            width: min(100%, var(--schedule-max-width));
+            margin: 0 auto;
+        }
+        table {
+            width: 100%;
+            min-width: 760px;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 14px;
+            table-layout: fixed;
+        }
+        th,
+        td {
+            text-align: center;
+            vertical-align: middle;
+            border-right: 1px solid var(--line-soft);
+            border-bottom: 1px solid var(--line-soft);
+            padding: 8px 6px;
+            line-height: 1.45;
+        }
+        thead th {
+            background: var(--header-bg);
+            color: var(--header-text);
+            font-weight: 700;
+            padding: 12px 8px;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+        th:last-child,
+        td:last-child {
+            border-right: 0;
+        }
+        tbody tr:last-child td {
+            border-bottom: 0;
+        }
+        tbody td {
+            height: 80px;
+        }
+        tbody tr:nth-child(even) td {
+            background: var(--row-alt);
+        }
+        tbody tr:hover td {
+            background: var(--row-hover);
+        }
+        .entry-divider {
+            margin: 10px 0;
+            border: 0;
+            border-top: 1px solid var(--line-soft);
+        }
+        .empty-cell {
+            background-color: var(--empty-bg) !important;
+            color: var(--subtle-text);
+        }
+        .empty-cell-label {
+            color: var(--subtle-text);
+            font-size: 12px;
+        }
+
+        td .subject-name {
+            font-weight: 700;
+            font-size: 14px;
             color: var(--text-color);
             margin-bottom: 4px;
         }
         td .details {
             margin-top: 6px;
-            line-height: 1.4;
+            line-height: 1.3;
+        }
+        .details.details-with-list-slot {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 6px;
+            min-height: 50px;
+        }
+        .student-list-slot {
+            min-height: 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .student-list-placeholder {
+            display: inline-block;
+            width: 70px;
+            height: 24px;
+            visibility: hidden;
         }
         .location-chip {
             display: inline-flex;
             align-items: center;
-            gap: 4px;
-            padding: 4px 10px;
-            background: linear-gradient(135deg, var(--accent-color), var(--primary-light));
-            color: var(--text-color);
-            border-radius: 16px;
+            justify-content: center;
+            padding: 3px 9px;
+            border-radius: 999px;
+            background: var(--chip-bg);
+            border: 1px solid var(--chip-border);
+            color: var(--chip-text);
             font-size: 11px;
-            font-weight: 500;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            font-weight: 600;
         }
         .teacher-name {
             display: inline-flex;
             align-items: center;
-            gap: 4px;
-            font-size: 12px;
-            color: var(--subtle-text);
-            font-weight: 500;
-            padding: 2px 6px;
-            background: rgba(0,0,0,0.05);
-            border-radius: 12px;
+            justify-content: center;
+            font-size: 11px;
+            color: var(--teacher-chip-text);
+            font-weight: 600;
+            padding: 3px 8px;
+            background: var(--teacher-chip-bg);
+            border: 1px solid var(--teacher-chip-border);
+            border-radius: 999px;
         }
-        .location-chip::before { 
-            content: '🏫'; 
-            font-size: 10px; 
+        .location-chip::before {
+            content: '';
+        }
+        .elective-subject-line {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .elective-class-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 24px;
+            height: 24px;
+            padding: 0 8px;
+            border-radius: 999px;
+            background: var(--primary-color);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1;
+        }
+        .student-list-btn {
+            margin-top: 0;
+            padding: 4px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 999px;
+            background: var(--card-background);
+            color: var(--text-color);
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+        }
+        .student-list-btn:hover {
+            background: var(--surface-soft);
+            border-color: var(--primary-light);
         }
 
-        /* 새로운 조회 모드 전용 스타일 */
+        .empty-state {
+            text-align: center;
+            padding: 78px 20px;
+        }
+        .empty-state-icon {
+            margin-bottom: 18px;
+            opacity: 0.45;
+            color: var(--subtle-text);
+        }
+        .empty-state h3 {
+            margin: 0;
+            color: var(--subtle-text);
+            font-weight: 500;
+        }
+        .empty-state-icon svg {
+            width: 44px;
+            height: 44px;
+        }
+
         .class-schedule-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -342,9 +603,8 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
         .student-card {
             background: var(--card-background);
             border: 1px solid var(--border-color);
-            border-radius: 8px;
+            border-radius: 10px;
             padding: 15px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
         .student-card h4 {
             margin: 0 0 10px 0;
@@ -355,8 +615,8 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             font-size: 13px;
             margin: 5px 0;
             padding: 5px 8px;
-            background: var(--accent-color);
-            border-radius: 4px;
+            background: var(--surface-soft);
+            border-radius: 6px;
         }
 
         .usage-stats {
@@ -366,94 +626,269 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             margin: 20px 0;
         }
         .stat-card {
-            background: var(--accent-color);
-            padding: 20px;
-            border-radius: 8px;
+            background: var(--surface-soft);
+            padding: 18px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
             text-align: center;
         }
         .stat-number {
             font-size: 2em;
-            font-weight: bold;
+            font-weight: 700;
             color: var(--primary-color);
         }
         .stat-label {
-            font-size: 14px;
+            font-size: 13px;
             color: var(--subtle-text);
             margin-top: 5px;
         }
 
-        /* 반응형 스타일 */
-        @media (max-width: 768px) {
-            body { padding: 10px; }
-            #app-container { padding: 20px; margin: 10px auto; border-radius: 12px; }
-            h1 { font-size: 1.5em; margin-bottom: 20px; flex-direction: column; gap: 10px; }
-            .title-icon { margin-right: 0; margin-bottom: 5px; height: 2em; max-width: 120px; }
-            .tab-navigation { flex-direction: column; }
-            .tab-button { flex: none; }
-            #search-section { padding: 20px 15px; margin-bottom: 20px; }
-            .search-container { max-width: 100%; }
-            #search-input { width: 100%; padding: 12px 15px 12px 45px; font-size: 16px; border-radius: 8px; box-sizing: border-box; }
-            .search-icon { left: 15px; }
-            .favorite-chips { gap: 8px; justify-content: flex-start; flex-wrap: wrap; }
-            .favorite-chip { padding: 6px 12px; font-size: 13px; white-space: nowrap; }
-            .schedule-header { flex-direction: column; gap: 15px; align-items: flex-start; margin-bottom: 15px; }
-            .schedule-info h2 { font-size: 1.4em; text-align: center; width: 100%; }
-            .action-btn { flex: 1; min-width: 120px; padding: 10px 12px; font-size: 14px; justify-content: center; }
-            table { font-size: 12px; }
-            td { height: 70px; line-height: 1.4; }
-            .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-            th:first-child, td:first-child { position: sticky; left: 0; background: var(--card-background); z-index: 1; box-shadow: 2px 0 4px rgba(0,0,0,0.05); min-width: 50px; }
-            thead th:first-child { background: var(--header-bg); color: var(--header-text); }
-            .empty-state { padding: 60px 20px; }
-            .empty-state-icon { font-size: 3em; }
-            .empty-state h3 { font-size: 1.2em; margin-top: 15px; }
-            .class-schedule-grid { grid-template-columns: 1fr; }
-            .usage-stats { grid-template-columns: repeat(2, 1fr); }
+        .student-list-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 2200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 22px;
+        }
+        .student-list-modal.open {
+            display: flex;
+        }
+        .student-list-modal-backdrop {
+            position: absolute;
+            inset: 0;
+            background: var(--modal-backdrop);
+        }
+        .student-list-modal-dialog {
+            position: relative;
+            width: min(860px, 100%);
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: linear-gradient(180deg, var(--modal-top) 0%, var(--modal-bottom) 100%);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+        }
+        .student-list-modal-header {
+            padding: 18px 20px 12px;
+            border-bottom: 1px solid var(--line-soft);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        #student-list-modal-title {
+            margin: 0;
+            font-size: 1.1rem;
+            letter-spacing: -0.01em;
+        }
+        #student-list-modal-meta {
+            margin-top: 4px;
+            color: var(--subtle-text);
+            font-size: 13px;
+        }
+        .modal-close-btn {
+            border: 1px solid var(--border-color);
+            background: var(--card-background);
+            color: var(--text-color);
+            border-radius: 10px;
+            font-size: 16px;
+            width: 34px;
+            height: 34px;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .student-list-modal-body {
+            padding: 0 20px;
+            overflow: auto;
+        }
+        .student-list-table {
+            width: 100%;
+            min-width: 520px;
+            border-collapse: collapse;
+            table-layout: fixed;
+            font-size: 13px;
+        }
+        .student-list-table th,
+        .student-list-table td {
+            padding: 9px 8px;
+            border-bottom: 1px solid var(--line-soft);
+            border-right: 0;
+        }
+        .student-list-table th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: var(--surface-soft);
+            color: var(--text-color);
+            font-weight: 700;
+        }
+        .student-list-modal-footer {
+            padding: 14px 20px 18px;
+            border-top: 1px solid var(--line-soft);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        .modal-secondary-btn,
+        .modal-primary-btn {
+            padding: 8px 13px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            background: var(--card-background);
+            color: var(--text-color);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .modal-primary-btn {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            color: #fff;
         }
 
-        /* 인쇄 스타일 - 최소한으로 줄여서 웹 스타일을 그대로 유지 */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            #app-container {
+                border-radius: 16px;
+                padding: 18px 14px;
+            }
+            h1 {
+                font-size: 1.45rem;
+                margin-bottom: 18px;
+                flex-direction: column;
+                gap: 8px;
+            }
+            .title-icon {
+                height: 2em;
+                max-width: 120px;
+            }
+            .tab-navigation {
+                gap: 6px;
+                margin-bottom: 14px;
+            }
+            .tab-button {
+                font-size: 13px;
+                padding: 10px 12px;
+            }
+            #search-section {
+                padding: 14px 12px;
+                margin-bottom: 14px;
+            }
+            #search-input {
+                padding: 12px 15px 12px 42px;
+                font-size: 15px;
+            }
+            .search-icon {
+                left: 14px;
+            }
+            .favorite-chips {
+                justify-content: flex-start;
+            }
+            .schedule-header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+                margin-bottom: 10px;
+            }
+            .schedule-info h2 {
+                font-size: 1.25rem;
+            }
+            .schedule-actions {
+                width: 100%;
+            }
+            .action-btn {
+                flex: 1;
+                min-width: 120px;
+            }
+            table {
+                font-size: 12px;
+                min-width: 680px;
+            }
+            th:first-child,
+            td:first-child {
+                position: sticky;
+                left: 0;
+                z-index: 3;
+                background: var(--card-background);
+            }
+            thead th:first-child {
+                background: var(--header-bg);
+            }
+            .empty-state {
+                padding: 56px 20px;
+            }
+            .student-list-modal {
+                padding: 10px;
+            }
+            .student-list-modal-dialog {
+                border-radius: 14px;
+                max-height: 94vh;
+            }
+            .student-list-modal-header,
+            .student-list-modal-body,
+            .student-list-modal-footer {
+                padding-left: 12px;
+                padding-right: 12px;
+            }
+            .student-list-table {
+                min-width: 460px;
+            }
+        }
+
         @media print {
-            /* 인쇄에 불필요한 요소만 숨기기 */
-            #search-section, .schedule-actions, .title-icon, .tab-navigation { display: none !important; }
-            
-            /* 페이지 레이아웃만 조정 */
-            body { 
-                background: white !important; 
-                padding: 0 !important; 
-                margin: 0 !important; 
+            #search-section,
+            .schedule-actions,
+            .title-icon,
+            .tab-navigation,
+            .student-list-modal {
+                display: none !important;
+            }
+            body {
+                background: #fff !important;
+                padding: 0 !important;
+                margin: 0 !important;
                 -webkit-print-color-adjust: exact !important;
             }
-            #app-container { 
-                box-shadow: none !important; 
-                padding: 15px !important; 
-                margin: 0 !important; 
-                max-width: 100% !important; 
-                background-color: white !important;
+            #app-container {
+                border: 0 !important;
+                border-radius: 0 !important;
+                padding: 15px !important;
+                margin: 0 !important;
+                max-width: 100% !important;
+                background: #fff !important;
             }
-            
-            /* 제목 크기만 인쇄용으로 조정 */
-            h1 { font-size: 16pt !important; }
-            .schedule-info h2 { font-size: 14pt !important; }
-            
-            /* 모든 색상이 인쇄되도록 보장 */
-            * { 
-                -webkit-print-color-adjust: exact !important; 
+            h1 {
+                font-size: 16pt !important;
+            }
+            .schedule-info h2 {
+                font-size: 14pt !important;
+            }
+            .schedule-header,
+            .table-container {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+            table {
+                min-width: 0 !important;
+            }
+            * {
+                -webkit-print-color-adjust: exact !important;
                 color-adjust: exact !important;
             }
-            
-            /* 반별 탭 인쇄 시 - 페이지 나누기만 적용 */
             .student-print-page {
                 page-break-before: always !important;
                 page-break-after: auto !important;
                 page-break-inside: avoid !important;
                 margin-bottom: 20px !important;
             }
-            
             .student-print-page:first-child {
                 page-break-before: auto !important;
             }
-            
-            /* 포켓사이즈 모드 - 2행 2열 4개 시간표 */
             body.pocket-size .class-schedule-print-container {
                 display: grid !important;
                 grid-template-columns: repeat(2, 1fr) !important;
@@ -469,15 +904,12 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
                 page-break-inside: avoid !important;
                 page-break-after: always !important;
             }
-            
             body.pocket-size .class-schedule-print-container:last-child {
                 page-break-after: auto !important;
             }
-            
             body.pocket-size .pocket-page-break {
                 page-break-before: always !important;
             }
-            
             body.pocket-size .student-print-page {
                 width: 100% !important;
                 height: auto !important;
@@ -492,7 +924,6 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
                 box-sizing: border-box !important;
                 overflow: hidden !important;
             }
-            
             body.pocket-size .student-print-page h3 {
                 font-size: 7pt !important;
                 margin: 0 0 1mm 0 !important;
@@ -500,14 +931,12 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
                 text-align: center !important;
                 border-bottom: 0.5px solid #999 !important;
             }
-            
             body.pocket-size .student-print-page table {
                 font-size: 5pt !important;
                 width: 100% !important;
                 margin: 0 !important;
                 table-layout: fixed !important;
             }
-            
             body.pocket-size .student-print-page th,
             body.pocket-size .student-print-page td {
                 padding: 0.5mm !important;
@@ -517,44 +946,35 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
                 border: 0.3px solid #999 !important;
                 overflow: hidden !important;
             }
-            
             body.pocket-size .student-print-page th {
                 height: 7mm !important;
                 font-size: 6pt !important;
                 font-weight: bold !important;
             }
-            
             body.pocket-size .subject-name {
                 font-size: 5.5pt !important;
                 margin-bottom: 0.3mm !important;
                 font-weight: bold !important;
                 line-height: 1 !important;
             }
-            
             body.pocket-size .details {
                 margin-top: 0.3mm !important;
                 line-height: 1 !important;
             }
-            
             body.pocket-size .location-chip,
             body.pocket-size .teacher-name {
                 font-size: 4.5pt !important;
-                padding: 0px 1px !important;
+                padding: 0 1px !important;
                 display: inline !important;
-                background: rgba(0,0,0,0.1) !important;
+                background: rgba(0, 0, 0, 0.1) !important;
                 border-radius: 1px !important;
             }
-            
             body.pocket-size .location-chip::before {
                 content: '' !important;
             }
-            
-            /* 포켓사이즈 모드에서 헤더 숨기기 */
             body.pocket-size .schedule-header {
                 display: none !important;
             }
-            
-            /* 인쇄 시 상단 제목 숨기기 */
             body.pocket-size h1 {
                 display: none !important;
             }
@@ -578,11 +998,11 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
         teacher: enabledFeatures.teacher !== false
     };
     
-    console.log('🔧 Safe features applied:', safeEnabledFeatures);
+    console.log('[FEATURES] Safe features applied:', safeEnabledFeatures);
     
     return `
         // 디버깅: 생성된 JavaScript에서 features 확인
-        console.log('🎯 Templates received features:', ${JSON.stringify(safeEnabledFeatures)});
+        console.log('[FEATURES] Templates received features:', ${JSON.stringify(safeEnabledFeatures)});
         
         const allStudents = ${dataJsonString};
         console.log('학생 데이터 (첫 5개):', allStudents.slice(0, 5));
@@ -600,8 +1020,8 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
         };
         
         // 추가 디버깅
-        console.log('📊 Final enabledFeatures in runtime:', enabledFeatures);
-        console.log('✅ Available features check:', {
+        console.log('[FEATURES] Final enabledFeatures in runtime:', enabledFeatures);
+        console.log('[FEATURES] Available features check:', {
             student: enabledFeatures.student,
             class: enabledFeatures.class,
             classroom: enabledFeatures.classroom,
@@ -657,20 +1077,453 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
         let currentMode = ''; // 초기값은 빈 문자열로, setupTabs에서 설정됨
 
         const scheduleContainer = document.getElementById('schedule-container');
+        const studentListStore = {};
+        let studentListCounter = 0;
+        const studentIndexByName = buildStudentIndex(allStudents);
+
+        function buildStudentIndex(students) {
+            const index = {};
+            students.forEach(student => {
+                if (!student || !student.name) return;
+                const name = String(student.name).trim();
+                if (!name) return;
+
+                if (!index[name]) {
+                    index[name] = [];
+                }
+
+                const homeroom = student.homeroom || '';
+                const number = student.number !== undefined && student.number !== null ? String(student.number).trim() : '';
+                let studentId = '';
+
+                if (homeroom && number) {
+                    const parts = homeroom.split('-');
+                    if (parts.length === 2) {
+                        const grade = parts[0];
+                        const classNum = String(parts[1]).padStart(2, '0');
+                        const studentNum = number.padStart(2, '0');
+                        studentId = grade + classNum + studentNum;
+                    }
+                }
+
+                index[name].push({
+                    name: name,
+                    homeroom: homeroom,
+                    number: number,
+                    studentId: studentId
+                });
+            });
+            return index;
+        }
+
+        function escapeHtml(value) {
+            if (value === null || value === undefined) return '';
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function csvEscape(value) {
+            if (value === null || value === undefined) return '';
+            const stringValue = String(value);
+            if (/[",\\n]/.test(stringValue)) {
+                return '"' + stringValue.replace(/"/g, '""') + '"';
+            }
+            return stringValue;
+        }
+
+        function sanitizeFileName(name) {
+            return String(name || '학생목록')
+                .replace(/[\\\\/:*?"<>|]/g, '_')
+                .replace(/\\s+/g, '_')
+                .replace(/_+/g, '_')
+                .replace(/^_+|_+$/g, '')
+                .slice(0, 80) || '학생목록';
+        }
+
+        function registerStudentList(payload) {
+            studentListCounter += 1;
+            const listId = 'student-list-' + studentListCounter;
+            studentListStore[listId] = payload;
+            return listId;
+        }
+
+        function clearStudentListStore() {
+            Object.keys(studentListStore).forEach(key => {
+                delete studentListStore[key];
+            });
+            studentListCounter = 0;
+        }
+
+        function resolveStudentRows(studentNames) {
+            const usageIndexByName = {};
+            return (studentNames || []).map(name => {
+                const safeName = String(name || '').trim();
+                if (!usageIndexByName[safeName]) {
+                    usageIndexByName[safeName] = 0;
+                }
+
+                const candidates = studentIndexByName[safeName] || [];
+                const indexPointer = usageIndexByName[safeName];
+                usageIndexByName[safeName] = indexPointer + 1;
+
+                if (candidates.length > 0) {
+                    const selected = candidates[Math.min(indexPointer, candidates.length - 1)];
+                    return {
+                        name: selected.name,
+                        homeroom: selected.homeroom || '',
+                        number: selected.number || '',
+                        studentId: selected.studentId || ''
+                    };
+                }
+
+                return {
+                    name: safeName,
+                    homeroom: '',
+                    number: '',
+                    studentId: ''
+                };
+            });
+        }
+
+        function openStudentListModal(listId) {
+            const payload = studentListStore[listId];
+            const modal = document.getElementById('student-list-modal');
+            if (!payload || !modal) return;
+
+            const titleElement = document.getElementById('student-list-modal-title');
+            const metaElement = document.getElementById('student-list-modal-meta');
+            const bodyElement = document.getElementById('student-list-modal-body');
+            const rows = resolveStudentRows(payload.students);
+
+            if (titleElement) {
+                titleElement.textContent = payload.title || '학생 목록';
+            }
+            if (metaElement) {
+                metaElement.textContent = '총 ' + rows.length + '명';
+            }
+            if (bodyElement) {
+                let tableHtml = '<table class="student-list-table">' +
+                    '<thead>' +
+                        '<tr><th>순번</th><th>학번</th><th>반</th><th>번호</th><th>이름</th></tr>' +
+                    '</thead>' +
+                    '<tbody>';
+
+                if (rows.length === 0) {
+                    tableHtml += '<tr><td colspan="5" class="empty-cell-label">학생 정보가 없습니다.</td></tr>';
+                } else {
+                    rows.forEach((row, index) => {
+                        tableHtml += '<tr>' +
+                            '<td>' + (index + 1) + '</td>' +
+                            '<td>' + escapeHtml(row.studentId || '-') + '</td>' +
+                            '<td>' + escapeHtml(row.homeroom || '-') + '</td>' +
+                            '<td>' + escapeHtml(row.number || '-') + '</td>' +
+                            '<td>' + escapeHtml(row.name || '-') + '</td>' +
+                        '</tr>';
+                    });
+                }
+
+                tableHtml += '</tbody></table>';
+                bodyElement.innerHTML = tableHtml;
+            }
+
+            modal.dataset.currentListId = listId;
+            modal.classList.add('open');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('modal-open');
+        }
+
+        function closeStudentListModal() {
+            const modal = document.getElementById('student-list-modal');
+            if (!modal) return;
+            modal.classList.remove('open');
+            modal.setAttribute('aria-hidden', 'true');
+            modal.dataset.currentListId = '';
+            document.body.classList.remove('modal-open');
+        }
+
+        function downloadStudentListExcel() {
+            const modal = document.getElementById('student-list-modal');
+            if (!modal) return;
+
+            const listId = modal.dataset.currentListId;
+            const payload = studentListStore[listId];
+            if (!payload) return;
+
+            const rows = resolveStudentRows(payload.students);
+            const exportRows = rows.map((row, index) => ({
+                순번: index + 1,
+                학번: row.studentId || '',
+                반: row.homeroom || '',
+                번호: row.number || '',
+                이름: row.name || ''
+            }));
+
+            const fileBaseName = sanitizeFileName(payload.fileName || payload.title || '학생목록');
+
+            if (window.XLSX && XLSX.utils && XLSX.writeFile) {
+                const worksheet = XLSX.utils.json_to_sheet(
+                    exportRows.length > 0 ? exportRows : [{ 순번: '', 학번: '', 반: '', 번호: '', 이름: '' }]
+                );
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, '학생목록');
+                XLSX.writeFile(workbook, fileBaseName + '.xlsx');
+                return;
+            }
+
+            const csvHeader = ['순번', '학번', '반', '번호', '이름'];
+            const csvRows = [csvHeader.join(',')];
+            exportRows.forEach(row => {
+                csvRows.push([
+                    csvEscape(row.순번),
+                    csvEscape(row.학번),
+                    csvEscape(row.반),
+                    csvEscape(row.번호),
+                    csvEscape(row.이름)
+                ].join(','));
+            });
+
+            if (exportRows.length === 0) {
+                csvRows.push(',,,,');
+            }
+
+            const csvBlob = new Blob(['\\uFEFF' + csvRows.join('\\n')], { type: 'text/csv;charset=utf-8;' });
+            const downloadLink = document.createElement('a');
+            downloadLink.href = URL.createObjectURL(csvBlob);
+            downloadLink.download = fileBaseName + '.csv';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+            URL.revokeObjectURL(downloadLink.href);
+        }
+
+        function cssColorToHex(color, fallback = '#92A8D1') {
+            const value = String(color || '').trim();
+            if (!value) return fallback;
+
+            if (value.startsWith('#')) {
+                const hex = value.slice(1);
+                if (hex.length === 3) {
+                    return '#' + hex.split('').map(ch => ch + ch).join('').toUpperCase();
+                }
+                if (hex.length === 6) {
+                    return '#' + hex.toUpperCase();
+                }
+                return fallback;
+            }
+
+            const rgbMatch = value.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/i);
+            if (rgbMatch) {
+                const r = Math.max(0, Math.min(255, parseInt(rgbMatch[1], 10)));
+                const g = Math.max(0, Math.min(255, parseInt(rgbMatch[2], 10)));
+                const b = Math.max(0, Math.min(255, parseInt(rgbMatch[3], 10)));
+                return '#' + [r, g, b].map(ch => ch.toString(16).padStart(2, '0')).join('').toUpperCase();
+            }
+
+            return fallback;
+        }
+
+        function toExcelRgb(color, fallback = '#92A8D1') {
+            return cssColorToHex(color, fallback).replace('#', '').toUpperCase();
+        }
+
+        function getExcelThemeColors() {
+            const styles = getComputedStyle(document.documentElement);
+            return {
+                primary: toExcelRgb(styles.getPropertyValue('--primary-color'), '#92A8D1'),
+                surface: toExcelRgb(styles.getPropertyValue('--surface-soft'), '#EEF4FF'),
+                headerBg: toExcelRgb(styles.getPropertyValue('--header-bg'), '#D7E3FF'),
+                headerText: toExcelRgb(styles.getPropertyValue('--header-text'), '#1F2937'),
+                border: toExcelRgb(styles.getPropertyValue('--border-color'), '#B7C4D6'),
+                text: toExcelRgb(styles.getPropertyValue('--text-color'), '#1F2937'),
+                subtle: toExcelRgb(styles.getPropertyValue('--subtle-text'), '#64748B'),
+                rowAlt: toExcelRgb(styles.getPropertyValue('--row-alt'), '#F7F9FD')
+            };
+        }
+
+        function getTeacherFilteredInfoByPeriod(scheduleData, day, period) {
+            const periodKey = day + period;
+            const classInfo = scheduleData[periodKey] || [];
+            if (classInfo.length === 0) {
+                return [];
+            }
+
+            let filteredInfo = classInfo;
+            const hasElectives = classInfo.some(info => info.students && info.students.length > 0);
+            const hasFixed = classInfo.some(info => info.homeroom && (!info.students || info.students.length === 0));
+            if (hasElectives && hasFixed) {
+                filteredInfo = classInfo.filter(info => info.students && info.students.length > 0);
+            }
+
+            return filteredInfo;
+        }
+
+        function getTeacherMaxPeriods(scheduleData) {
+            const periods = Object.keys(scheduleData || {}).map(key => {
+                const match = String(key).match(/(\\d+)$/);
+                return match ? parseInt(match[1], 10) : 0;
+            }).filter(value => Number.isFinite(value) && value > 0);
+
+            return periods.length > 0 ? Math.max(...periods) : 7;
+        }
+
+        function downloadTeacherScheduleExcel(teacherId) {
+            const scheduleData = teacherData[teacherId] || {};
+            if (!window.XLSX || !XLSX.utils || !XLSX.writeFile) {
+                alert('엑셀 라이브러리를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
+                return;
+            }
+
+            const days = ['월', '화', '수', '목', '금'];
+            const maxPeriods = getTeacherMaxPeriods(scheduleData);
+            const now = new Date();
+            const generatedAt = now.getFullYear() + '-' +
+                String(now.getMonth() + 1).padStart(2, '0') + '-' +
+                String(now.getDate()).padStart(2, '0') + ' ' +
+                String(now.getHours()).padStart(2, '0') + ':' +
+                String(now.getMinutes()).padStart(2, '0');
+
+            const rows = [];
+            rows.push([teacherId + ' 선생님 시간표']);
+            rows.push(['생성일: ' + generatedAt]);
+            rows.push([]);
+            rows.push(['교시', '월', '화', '수', '목', '금']);
+
+            for (let period = 1; period <= maxPeriods; period++) {
+                const row = [period];
+                days.forEach(day => {
+                    const infoList = getTeacherFilteredInfoByPeriod(scheduleData, day, period);
+                    if (infoList.length === 0) {
+                        row.push('공강');
+                        return;
+                    }
+
+                    const cellText = infoList.map(info => {
+                        const hasStudents = info.students && info.students.length > 0;
+                        const subjectTitle = info.electiveClassName && hasStudents
+                            ? '[' + info.electiveClassName + '] ' + info.subject
+                            : info.subject;
+                        const classroom = info.classroom ? ('\\n교실: ' + info.classroom) : '';
+                        const students = hasStudents ? ('\\n학생: ' + info.students.length + '명') : '';
+                        return subjectTitle + classroom + students;
+                    }).join('\\n────────\\n');
+
+                    row.push(cellText);
+                });
+                rows.push(row);
+            }
+
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            ws['!merges'] = [
+                { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } },
+                { s: { r: 1, c: 0 }, e: { r: 1, c: 5 } }
+            ];
+            ws['!cols'] = [
+                { wch: 7 },
+                { wch: 22 },
+                { wch: 22 },
+                { wch: 22 },
+                { wch: 22 },
+                { wch: 22 }
+            ];
+
+            const rowHeights = [
+                { hpt: 30 },
+                { hpt: 18 },
+                { hpt: 8 },
+                { hpt: 22 }
+            ];
+            for (let i = 0; i < maxPeriods; i++) {
+                rowHeights.push({ hpt: 62 });
+            }
+            ws['!rows'] = rowHeights;
+
+            const theme = getExcelThemeColors();
+            const borderAll = {
+                top: { style: 'thin', color: { rgb: theme.border } },
+                bottom: { style: 'thin', color: { rgb: theme.border } },
+                left: { style: 'thin', color: { rgb: theme.border } },
+                right: { style: 'thin', color: { rgb: theme.border } }
+            };
+
+            const titleStyle = {
+                font: { bold: true, sz: 16, color: { rgb: theme.primary }, name: '맑은 고딕' },
+                alignment: { horizontal: 'center', vertical: 'center' },
+                fill: { patternType: 'solid', fgColor: { rgb: theme.surface } },
+                border: borderAll
+            };
+            const metaStyle = {
+                font: { sz: 10, color: { rgb: theme.subtle }, name: '맑은 고딕' },
+                alignment: { horizontal: 'left', vertical: 'center' }
+            };
+            const headerStyle = {
+                font: { bold: true, sz: 11, color: { rgb: theme.headerText }, name: '맑은 고딕' },
+                fill: { patternType: 'solid', fgColor: { rgb: theme.headerBg } },
+                alignment: { horizontal: 'center', vertical: 'center' },
+                border: borderAll
+            };
+            const periodStyle = {
+                font: { bold: true, sz: 11, color: { rgb: theme.text }, name: '맑은 고딕' },
+                fill: { patternType: 'solid', fgColor: { rgb: theme.surface } },
+                alignment: { horizontal: 'center', vertical: 'center' },
+                border: borderAll
+            };
+            const dataBaseStyle = {
+                font: { sz: 10, color: { rgb: theme.text }, name: '맑은 고딕' },
+                alignment: { horizontal: 'center', vertical: 'top', wrapText: true },
+                border: borderAll
+            };
+            const altFillStyle = {
+                patternType: 'solid',
+                fgColor: { rgb: theme.rowAlt }
+            };
+
+            const range = XLSX.utils.decode_range(ws['!ref']);
+            for (let r = 0; r <= range.e.r; r++) {
+                for (let c = 0; c <= range.e.c; c++) {
+                    const cellRef = XLSX.utils.encode_cell({ r, c });
+                    if (!ws[cellRef]) continue;
+
+                    if (r === 0) {
+                        ws[cellRef].s = titleStyle;
+                    } else if (r === 1) {
+                        ws[cellRef].s = metaStyle;
+                    } else if (r === 3) {
+                        ws[cellRef].s = headerStyle;
+                    } else if (r >= 4 && c === 0) {
+                        ws[cellRef].s = periodStyle;
+                    } else if (r >= 4) {
+                        const isAltRow = (r - 4) % 2 === 1;
+                        ws[cellRef].s = isAltRow
+                            ? { ...dataBaseStyle, fill: altFillStyle }
+                            : dataBaseStyle;
+                    }
+                }
+            }
+
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, ws, '선생님시간표');
+
+            const fileName = sanitizeFileName(teacherId + '_선생님_시간표') + '.xlsx';
+            XLSX.writeFile(workbook, fileName, { compression: true });
+        }
         
 
         function init() {
-            console.log('🚀 Initializing timetable system...');
-            console.log('📊 Features check at init:', enabledFeatures);
+            console.log('[INIT] Initializing timetable system...');
+            console.log('[INIT] Features check at init:', enabledFeatures);
             
             // DOM이 준비될 때까지 기다림
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', () => {
-                    console.log('📄 DOM loaded, starting setup...');
+                    console.log('[INIT] DOM loaded, starting setup...');
                     performInit();
                 });
             } else {
-                console.log('📄 DOM already loaded, starting setup...');
+                console.log('[INIT] DOM already loaded, starting setup...');
                 performInit();
             }
         }
@@ -680,21 +1533,30 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                 setupTabs();
                 updateSearchSection();
                 showEmptyState();
-                console.log('✅ Initialization completed successfully');
+                setupModalEventListeners();
+                console.log('[INIT] Initialization completed successfully');
             } catch (error) {
-                console.error('❌ Initialization failed:', error);
+                console.error('[INIT] Initialization failed:', error);
                 // 오류 발생시 기본 탭이라도 보여주기
                 const tabNavigation = document.querySelector('.tab-navigation');
                 if (tabNavigation) {
                     tabNavigation.innerHTML = '' +
-                        '<button class="tab-button active" data-mode="student">🧑‍🎓 학생별</button>' +
-                        '<button class="tab-button" data-mode="class">🏫 반별</button>' +
-                        '<button class="tab-button" data-mode="classroom">🚪 교실별</button>' +
-                        '<button class="tab-button" data-mode="teacher">👨‍🏫 선생님별</button>';
+                        '<button class="tab-button active" data-mode="student"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>학생별</button>' +
+                        '<button class="tab-button" data-mode="class"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>반별</button>' +
+                        '<button class="tab-button" data-mode="classroom"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>교실별</button>' +
+                        '<button class="tab-button" data-mode="teacher"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>선생님별</button>';
                     currentMode = 'student';  
                     setupBasicEventListeners();
                 }
             }
+        }
+
+        function setupModalEventListeners() {
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    closeStudentListModal();
+                }
+            });
         }
         
         function setupBasicEventListeners() {
@@ -719,63 +1581,70 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
             const safeFeatures = enabledFeatures || {};
             const hasAnyFeature = safeFeatures.student || safeFeatures.class || safeFeatures.classroom || safeFeatures.teacher;
             
+            // SVG 아이콘 정의
+            const tabIcons = {
+                student: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+                class: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+                classroom: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+                teacher: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>'
+            };
+            const tabLabels = {student: '학생별', class: '반별', classroom: '교실별', teacher: '선생님별'};
+
             if (!hasAnyFeature) {
-                console.warn('❌ No features enabled, using defaults');
-                // 기본적으로 모든 기능 활성화
+                console.warn('[TABS] No features enabled, using defaults');
                 safeFeatures.student = true;
                 safeFeatures.class = true;
                 safeFeatures.classroom = true;
                 safeFeatures.teacher = true;
             }
-            
+
             if (safeFeatures.student) {
                 availableModes.push('student');
-                tabsHtml.push('<button class="tab-button" data-mode="student">🧑‍🎓 학생별</button>');
-                console.log('✅ Student tab added');
+                tabsHtml.push('<button class="tab-button" data-mode="student">' + tabIcons.student + tabLabels.student + '</button>');
+                console.log('[TABS] Student tab added');
             }
             if (safeFeatures.class) {
                 availableModes.push('class');
-                tabsHtml.push('<button class="tab-button" data-mode="class">🏫 반별</button>');
-                console.log('✅ Class tab added');
+                tabsHtml.push('<button class="tab-button" data-mode="class">' + tabIcons.class + tabLabels.class + '</button>');
+                console.log('[TABS] Class tab added');
             }
             if (safeFeatures.classroom) {
                 availableModes.push('classroom');
-                tabsHtml.push('<button class="tab-button" data-mode="classroom">🚪 교실별</button>');
-                console.log('✅ Classroom tab added');
+                tabsHtml.push('<button class="tab-button" data-mode="classroom">' + tabIcons.classroom + tabLabels.classroom + '</button>');
+                console.log('[TABS] Classroom tab added');
             }
             if (safeFeatures.teacher) {
                 availableModes.push('teacher');
-                tabsHtml.push('<button class="tab-button" data-mode="teacher">👨‍🏫 선생님별</button>');
-                console.log('✅ Teacher tab added');
+                tabsHtml.push('<button class="tab-button" data-mode="teacher">' + tabIcons.teacher + tabLabels.teacher + '</button>');
+                console.log('[TABS] Teacher tab added');
             }
-            
+
             const tabNavigation = document.querySelector('.tab-navigation');
-            
+
             if (availableModes.length === 0) {
-                // 이 경우는 이제 발생하지 않아야 함
-                console.error('❌ No features enabled after safety check!');
+                console.error('[TABS] No features enabled after safety check!');
                 tabNavigation.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">선택된 조회 기능이 없습니다.</div>';
                 return;
             }
             
             // 첫 번째 사용 가능한 모드를 기본값으로 설정
             currentMode = availableModes[0];
-            console.log('🎯 Current mode set to:', currentMode); // 디버깅용
+            console.log('[TABS] Current mode set to:', currentMode);
             
             tabNavigation.innerHTML = tabsHtml.join('');
-            console.log('📋 Generated tabs:', tabsHtml.length);
+            console.log('[TABS] Generated tabs:', tabsHtml.length);
             
             // 첫 번째 탭을 활성화
             const firstTab = document.querySelector('.tab-button');
             if (firstTab) {
                 firstTab.classList.add('active');
-                console.log('🎯 First tab activated:', firstTab.dataset.mode);
+                console.log('[TABS] First tab activated:', firstTab.dataset.mode);
             }
             
             // 탭 클릭 이벤트
             document.querySelectorAll('.tab-button').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    console.log('🖱️ Tab clicked:', btn.dataset.mode);
+                    console.log('[TABS] Tab clicked:', btn.dataset.mode);
                     document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                     currentMode = btn.dataset.mode;
@@ -841,6 +1710,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
 
         function updateSearchSection() {
             const searchSection = document.getElementById('search-section');
+            closeStudentListModal();
             
             if (currentMode === 'student') {
                 // 학생별 탭: 검색창 + 즐겨찾기
@@ -926,10 +1796,8 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                 return; 
             }
             
-            const icons = {student: '🧑‍🎓', class: '🏫', classroom: '🚪', teacher: '👨‍🏫'};
-            
             autocompleteDropdown.innerHTML = filteredData.map(item => {
-                const icon = icons[item.type || 'student'];
+                const icon = '';
                 let displayName = '';
                 
                 if (item.type === 'student' || !item.type) {
@@ -989,6 +1857,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
         function displayStudentSchedule(uniqueId) {
             const student = allStudents.find(s => s.uniqueId === uniqueId);
             if (!student) { showEmptyState(); return; }
+            clearStudentListStore();
             
             const isFavorite = favorites.includes(uniqueId);
             const days = ['월', '화', '수', '목', '금'];
@@ -1047,7 +1916,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                         const cellContent = student.schedule[day][i] || '';
                         tableHTML += '<td>' + cellContent + '</td>';
                     } else {
-                        tableHTML += '<td style="background-color: #f8f9fa;"></td>';
+                        tableHTML += '<td class="empty-cell"></td>';
                     }
                 });
                 tableHTML += '</tr>';
@@ -1060,6 +1929,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
         function displayClassSchedule(classId) {
             const students = classData[classId] || [];
             if (students.length === 0) { showEmptyState(); return; }
+            clearStudentListStore();
             
             const days = ['월', '화', '수', '목', '금'];
             const maxPeriods = Math.max(...students.map(s => s.maxPeriods));
@@ -1069,7 +1939,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                         '<h2>' + classId + '반 시간표 <small>(총 ' + students.length + '명)</small></h2>' +
                     '</div>' +
                     '<div class="schedule-actions">' +
-                        '<button class="action-btn" id="pocket-toggle" onclick="togglePocketSize()" style="margin-right: 10px;">' +
+                        '<button class="action-btn" id="pocket-toggle" onclick="togglePocketSize()">' +
                             '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
                                 '<rect x="2" y="6" width="20" height="8" rx="2"></rect>' +
                                 '<path d="M6 12h12"></path>' +
@@ -1128,7 +1998,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                             const cellContent = student.schedule[day][i] || '';
                             html += '<td>' + cellContent + '</td>';
                         } else {
-                            html += '<td style="background-color: #f8f9fa;"></td>';
+                            html += '<td class="empty-cell"></td>';
                         }
                     });
                     html += '</tr>';
@@ -1145,6 +2015,8 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
             const scheduleData = classroomData[classroomId] || {};
             const days = ['월', '화', '수', '목', '금'];
             const maxPeriods = 7; // 기본값
+            closeStudentListModal();
+            clearStudentListStore();
             
             let html = '<div class="schedule-header">' +
                     '<div class="schedule-info">' +
@@ -1185,26 +2057,32 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                             filteredInfo = usageInfo.filter(info => info.students && info.students.length > 0);
                         }
                         
-                        const content = filteredInfo.map((info, infoIndex) => {
-                            const studentListId = 'students-' + classroomId + '-' + periodKey + '-' + infoIndex;
+                        const content = filteredInfo.map(info => {
                             const hasStudents = info.students && info.students.length > 0;
                             
-                            let detailsHtml = '<div class="details">' +
-                                            '<span class="teacher-name">' + info.teacher + '</span>';
+                            let detailsHtml = '<div class="details details-with-list-slot">' +
+                                            '<span class="teacher-name">' + info.teacher + '</span>' +
+                                            '<div class="student-list-slot">';
                             
                             // 학생이 있는 경우에만 학생목록 버튼 표시
                             if (hasStudents) {
-                                detailsHtml += '<br><button class="favorite-chip" style="font-size: 11px; padding: 4px 8px; margin-top: 4px;" onclick="toggleStudentList(\\'' + studentListId + '\\')">학생목록</button>' +
-                                             '<div id="' + studentListId + '" style="display: none; margin-top: 4px; font-size: 11px; color: #666;">' + info.students.join(', ') + '</div>';
+                                const listId = registerStudentList({
+                                    title: classroomId + ' 교실 · ' + periodKey + ' · ' + info.subject,
+                                    fileName: classroomId + '_' + periodKey + '_' + info.subject + '_학생목록',
+                                    students: info.students
+                                });
+                                detailsHtml += '<button class="student-list-btn" onclick="openStudentListModal(\\'' + listId + '\\')">학생목록</button>';
+                            } else {
+                                detailsHtml += '<span class="student-list-placeholder" aria-hidden="true"></span>';
                             }
                             
-                            detailsHtml += '</div>';
+                            detailsHtml += '</div></div>';
                             
                             return '<div class="subject-name">' + info.subject + '</div>' + detailsHtml;
-                        }).join('<hr style="margin: 8px 0; border: 1px solid #eee;">');
+                        }).join('<hr class="entry-divider">');
                         html += '<td>' + content + '</td>';
                     } else {
-                        html += '<td style="background-color: #f8f9fa; color: #999;">비어있음</td>';
+                        html += '<td class="empty-cell"><span class="empty-cell-label">비어있음</span></td>';
                     }
                 });
                 html += '</tr>';
@@ -1218,6 +2096,8 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
             const scheduleData = teacherData[teacherId] || {};
             const days = ['월', '화', '수', '목', '금'];
             const maxPeriods = 7; // 기본값
+            closeStudentListModal();
+            clearStudentListStore();
             
             const isFavorite = teacherFavorites.includes(teacherId);
             
@@ -1239,6 +2119,14 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                                 '<rect x="6" y="14" width="12" height="8"></rect>' +
                             '</svg> ' +
                             '인쇄' +
+                        '</button>' +
+                        '<button class="action-btn" onclick="downloadTeacherScheduleExcel(\\'' + teacherId + '\\')">' +
+                            '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+                                '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>' +
+                                '<polyline points="7 10 12 15 17 10"></polyline>' +
+                                '<line x1="12" y1="15" x2="12" y2="3"></line>' +
+                            '</svg> ' +
+                            '엑셀 다운로드' +
                         '</button>' +
                     '</div>' +
                 '</div>' +
@@ -1266,26 +2154,32 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                             filteredInfo = classInfo.filter(info => info.students && info.students.length > 0);
                         }
                         
-                        const content = filteredInfo.map((info, infoIndex) => {
-                            const studentListId = 'teacher-students-' + teacherId + '-' + periodKey + '-' + infoIndex;
+                        const content = filteredInfo.map(info => {
                             const hasStudents = info.students && info.students.length > 0;
                             
-                            let detailsHtml = '<div class="details">' +
-                                            '<span class="location-chip">' + info.classroom + '</span>';
+                            let detailsHtml = '<div class="details details-with-list-slot">' +
+                                            '<span class="location-chip">' + info.classroom + '</span>' +
+                                            '<div class="student-list-slot">';
                             
                             // 학생이 있는 경우에만 학생목록 표시
                             if (hasStudents) {
-                                detailsHtml += '<br><button class="favorite-chip" style="font-size: 11px; padding: 4px 8px; margin-top: 4px;" onclick="toggleStudentList(\\'' + studentListId + '\\')">학생목록</button>' +
-                                             '<div id="' + studentListId + '" style="display: none; margin-top: 4px; font-size: 11px; color: #666;">' + info.students.join(', ') + '</div>';
+                                const listId = registerStudentList({
+                                    title: teacherId + ' 선생님 · ' + periodKey + ' · ' + info.subject,
+                                    fileName: teacherId + '_' + periodKey + '_' + info.subject + '_학생목록',
+                                    students: info.students
+                                });
+                                detailsHtml += '<button class="student-list-btn" onclick="openStudentListModal(\\'' + listId + '\\')">학생목록</button>';
+                            } else {
+                                detailsHtml += '<span class="student-list-placeholder" aria-hidden="true"></span>';
                             }
                             
-                            detailsHtml += '</div>';
+                            detailsHtml += '</div></div>';
                             
                             // 선택과목의 경우 반명을 원형으로 표시
                             let subjectDisplayHtml = '';
                             if (info.electiveClassName && hasStudents) {
-                                subjectDisplayHtml = '<div style="display: flex; align-items: center; justify-content: center; gap: 8px;">' +
-                                    '<span class="elective-class-badge" style="display: inline-block; width: 24px; height: 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 50%; text-align: center; line-height: 24px; font-size: 11px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">' + info.electiveClassName + '</span>' +
+                                subjectDisplayHtml = '<div class="elective-subject-line">' +
+                                    '<span class="elective-class-badge">' + info.electiveClassName + '</span>' +
                                     '<div class="subject-name">' + info.subject + '</div>' +
                                 '</div>';
                             } else {
@@ -1293,10 +2187,10 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                             }
                             
                             return subjectDisplayHtml + detailsHtml;
-                        }).join('<hr style="margin: 8px 0; border: 1px solid #eee;">');
+                        }).join('<hr class="entry-divider">');
                         html += '<td>' + content + '</td>';
                     } else {
-                        html += '<td style="background-color: #f8f9fa; color: #999;">공강</td>';
+                        html += '<td class="empty-cell"><span class="empty-cell-label">공강</span></td>';
                     }
                 });
                 html += '</tr>';
@@ -2576,16 +3470,6 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
             }
             selectedIndex = -1; 
         }
-        function toggleStudentList(studentListId) {
-            const element = document.getElementById(studentListId);
-            if (element) {
-                if (element.style.display === 'none') {
-                    element.style.display = 'block';
-                } else {
-                    element.style.display = 'none';
-                }
-            }
-        }
 
         function togglePocketSize() {
             const body = document.body;
@@ -2616,14 +3500,18 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
             }
         }
 
-        function showEmptyState() { 
-            const emptyStates = {
-                student: '<div class="empty-state"><div class="empty-state-icon">🧑‍🎓</div><h3>학생 이름을 검색하세요</h3></div>',
-                class: '<div class="empty-state"><div class="empty-state-icon">🏫</div><h3>반을 선택하세요</h3></div>',
-                classroom: '<div class="empty-state"><div class="empty-state-icon">🚪</div><h3>교실을 선택하세요</h3></div>',
-                teacher: '<div class="empty-state"><div class="empty-state-icon">👨‍🏫</div><h3>선생님을 선택하세요</h3></div>'
+        function showEmptyState() {
+            const svgIcons = {
+                student: '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+                class: '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+                classroom: '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+                teacher: '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>'
             };
-            scheduleContainer.innerHTML = emptyStates[currentMode] || '<div class="empty-state"><div class="empty-state-icon">🔍</div><h3>선택하세요</h3></div>'; 
+            const defaultIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
+            const labels = {student: '학생 이름을 검색하세요', class: '반을 선택하세요', classroom: '교실을 선택하세요', teacher: '선생님을 선택하세요'};
+            const icon = svgIcons[currentMode] || defaultIcon;
+            const label = labels[currentMode] || '선택하세요';
+            scheduleContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">' + icon + '</div><h3>' + label + '</h3></div>';
         }
 
         // 초기화 실행
@@ -2649,7 +3537,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                 
                 autocompleteDropdown.innerHTML = filteredTeachers.map((teacher, index) => 
                     '<div class="autocomplete-item' + (index === selectedIndex ? ' selected' : '') + '" onclick="selectTeacher(\\'' + teacher + '\\');">' + 
-                    '👨‍🏫 ' + teacher + ' 선생님' +
+                    teacher + ' 선생님' +
                     '</div>'
                 ).join('');
                 autocompleteDropdown.style.display = 'block';
@@ -2784,7 +3672,10 @@ function getHtmlTemplate(dataJsonString, pageTitle, iconBase64, selectedTheme = 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${pageTitle}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <style>
         ${generateTimetableCSS(selectedTheme)}
     </style>
@@ -2792,7 +3683,7 @@ function getHtmlTemplate(dataJsonString, pageTitle, iconBase64, selectedTheme = 
 <body>
     <div id="app-container">
         <h1>
-            ${iconBase64 ? `<img src="${iconBase64}" alt="logo" class="title-icon">` : '📅'}
+            ${iconBase64 ? `<img src="${iconBase64}" alt="logo" class="title-icon">` : ''}
             <span>${pageTitle}</span>
         </h1>
         
@@ -2805,6 +3696,24 @@ function getHtmlTemplate(dataJsonString, pageTitle, iconBase64, selectedTheme = 
         </div>
         
         <div id="schedule-container"></div>
+    </div>
+
+    <div id="student-list-modal" class="student-list-modal" aria-hidden="true">
+        <div class="student-list-modal-backdrop" onclick="closeStudentListModal()"></div>
+        <div class="student-list-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="student-list-modal-title">
+            <div class="student-list-modal-header">
+                <div>
+                    <h3 id="student-list-modal-title">학생 목록</h3>
+                    <div id="student-list-modal-meta">총 0명</div>
+                </div>
+                <button type="button" class="modal-close-btn" onclick="closeStudentListModal()" aria-label="닫기">×</button>
+            </div>
+            <div id="student-list-modal-body" class="student-list-modal-body"></div>
+            <div class="student-list-modal-footer">
+                <button type="button" class="modal-secondary-btn" onclick="closeStudentListModal()">닫기</button>
+                <button type="button" class="modal-primary-btn" onclick="downloadStudentListExcel()">엑셀 다운로드</button>
+            </div>
+        </div>
     </div>
     
     <script>

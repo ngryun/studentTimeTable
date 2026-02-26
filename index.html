@@ -4,19 +4,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>학생 개인별 시간표 조회 HTML 페이지 생성기 2025</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-    <!-- 🔥 외부 CSS 파일 참조 -->
+    <!-- 외부 CSS 파일 참조 -->
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div id="app-container">
-        <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="margin-bottom: 10px;">학생 개인별 시간표 조회 HTML 페이지 생성기</h1>
-            <div style="margin-bottom: 15px;">
-                <a href="https://namgungyeon.tistory.com/131" target="_blank" style="display: inline-block; background: linear-gradient(45deg, #007bff, #0056b3); color: white; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-size: 14px;">📖 도움말</a>
+        <div class="app-header">
+            <h1>학생 개인별 시간표 조회 HTML 페이지 생성기</h1>
+            <div class="help-link-wrapper">
+                <a href="https://namgungyeon.tistory.com/131" target="_blank" class="help-link">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                    도움말
+                </a>
             </div>
-            <div style="font-size: 12px; color: #666; font-style: italic; margin-bottom: 5px;">made by Namgung yeon (seolak high school)</div>
-            <div style="font-size: 11px; color: #888;">Last updated : 2025.08.14 11:00</div>
+            <div class="app-credit">made by Namgung yeon (seolak high school)</div>
+            <div class="app-version" id="app-version">Last updated : -</div>
+        </div>
+
+        <!-- 스텝 진행 인디케이터 -->
+        <div class="step-indicator">
+            <div class="step-item active" data-step="1">
+                <div class="step-number">1</div>
+                <div class="step-label">파일 업로드</div>
+            </div>
+            <div class="step-connector"></div>
+            <div class="step-item" data-step="2">
+                <div class="step-number">2</div>
+                <div class="step-label">상세 정보</div>
+            </div>
+            <div class="step-connector"></div>
+            <div class="step-item" data-step="3">
+                <div class="step-number">3</div>
+                <div class="step-label">HTML 생성</div>
+            </div>
         </div>
 
         <div id="step1">
@@ -33,23 +55,25 @@
             </div>
             <input type="file" id="file-input-weekly" class="file-input" data-type="weekly" accept=".xlsx, .xls">
             <input type="file" id="file-input-selection" class="file-input" data-type="selection" accept=".xlsx, .xls" multiple>
-            <button id="template-gen-button" disabled>선택과목 정보 템플릿 생성</button>
+            <button id="template-gen-button" disabled data-disabled-reason="두 개의 파일을 모두 업로드해주세요">선택과목 정보 템플릿 생성</button>
         </div>
-        
+
         <div id="step2" style="display: none;">
             <div class="step2-header">
-                <div class="step2-icon">⚙️</div>
+                <div class="step2-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                </div>
                 <h2 class="step2-title">2단계: 선택과목 상세 정보 입력</h2>
                 <span class="optional-badge">선택사항</span>
             </div>
-            
+
             <div class="step2-description">
-                <h4>🎯 이 단계에서 할 수 있는 작업</h4>
+                <h4>이 단계에서 할 수 있는 작업</h4>
                 <p>• <strong>교실 정보, 담당 교사</strong> 등 상세 정보를 추가할 수 있습니다</p>
                 <p>• <strong>과목명을 축약형으로 변경</strong>하여 시간표가 더 깔끔해집니다</p>
                 <p>• 건너뛰어도 기본 시간표는 정상적으로 생성됩니다</p>
             </div>
-            
+
             <div class="process-steps">
                 <div class="process-step">
                     <div class="process-step-number">1</div>
@@ -67,24 +91,30 @@
                     <div class="process-step-desc">수정한 파일을<br>아래에 업로드</div>
                 </div>
             </div>
-            
+
             <div class="upload-section" id="upload-box-info">
-                <div class="upload-icon">📤</div>
+                <div class="upload-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                </div>
                 <div class="upload-title">수정한 선택과목정보.xlsx</div>
                 <div class="upload-subtitle">템플릿을 수정했다면 여기에 드래그하거나 클릭하세요</div>
                 <div class="file-status" id="file-status-info">대기 중...</div>
             </div>
-            
+
             <input type="file" id="file-input-info" class="file-input" data-type="info" accept=".xlsx, .xls">
-            
-            <div class="template-actions" style="margin-top: 20px; text-align: center;">
-                <button id="redownload-template-button" disabled style="background: linear-gradient(45deg, #6f42c1, #5a2d91); color: white; padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; transition: all 0.3s;">
-                    📥 템플릿 다시 다운로드
+
+            <div class="template-actions">
+                <button id="redownload-template-button" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    템플릿 다시 다운로드
                 </button>
             </div>
-            
+
             <div class="skip-section">
-                <h4>⏭️ 건너뛰기</h4>
+                <h4>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+                    건너뛰기
+                </h4>
                 <p>상세 정보 입력 없이 바로 3단계로 진행해도 시간표가 생성됩니다</p>
             </div>
         </div>
@@ -95,119 +125,126 @@
                 <label for="timetable-title">생성될 시간표 페이지 제목 설정:</label>
                 <input type="text" id="timetable-title" placeholder="예: OOO고등학교 2025년 1학기 시간표 조회 시스템">
             </div>
-            
-            <div id="features-selection-container" style="margin: 25px 0; text-align: left;">
-                <label style="font-weight: bold; margin-bottom: 15px; display: block; color: #333;">시간표 조회 기능 선택:</label>
-                <div class="features-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px;">
+
+            <div id="features-selection-container">
+                <label class="section-label">시간표 조회 기능 선택:</label>
+                <div class="features-grid">
                     <div class="feature-option">
-                        <label style="display: flex; align-items: center; gap: 10px; padding: 15px; border: 2px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: all 0.3s;">
-                            <input type="checkbox" id="feature-student" checked style="width: 18px; height: 18px;">
+                        <label>
+                            <input type="checkbox" id="feature-student" checked>
+                            <span class="feature-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
                             <div>
-                                <div style="font-weight: 600; color: #333;">🧑‍🎓 학생별 조회</div>
-                                <div style="font-size: 12px; color: #666;">개별 학생 시간표 검색</div>
+                                <div class="feature-title">학생별 조회</div>
+                                <div class="feature-desc">개별 학생 시간표 검색</div>
                             </div>
                         </label>
                     </div>
                     <div class="feature-option">
-                        <label style="display: flex; align-items: center; gap: 10px; padding: 15px; border: 2px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: all 0.3s;">
-                            <input type="checkbox" id="feature-class" checked style="width: 18px; height: 18px;">
+                        <label>
+                            <input type="checkbox" id="feature-class" checked>
+                            <span class="feature-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
                             <div>
-                                <div style="font-weight: 600; color: #333;">🏫 반별 조회</div>
-                                <div style="font-size: 12px; color: #666;">반 전체 시간표 조회</div>
+                                <div class="feature-title">반별 조회</div>
+                                <div class="feature-desc">반 전체 시간표 조회</div>
                             </div>
                         </label>
                     </div>
                     <div class="feature-option">
-                        <label style="display: flex; align-items: center; gap: 10px; padding: 15px; border: 2px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: all 0.3s;">
-                            <input type="checkbox" id="feature-classroom" checked style="width: 18px; height: 18px;">
+                        <label>
+                            <input type="checkbox" id="feature-classroom" checked>
+                            <span class="feature-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span>
                             <div>
-                                <div style="font-weight: 600; color: #333;">🚪 교실별 조회</div>
-                                <div style="font-size: 12px; color: #666;">교실 사용 현황 조회</div>
+                                <div class="feature-title">교실별 조회</div>
+                                <div class="feature-desc">교실 사용 현황 조회</div>
                             </div>
                         </label>
                     </div>
                     <div class="feature-option">
-                        <label style="display: flex; align-items: center; gap: 10px; padding: 15px; border: 2px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: all 0.3s;">
-                            <input type="checkbox" id="feature-teacher" checked style="width: 18px; height: 18px;">
+                        <label>
+                            <input type="checkbox" id="feature-teacher" checked>
+                            <span class="feature-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></span>
                             <div>
-                                <div style="font-weight: 600; color: #333;">👨‍🏫 선생님별 조회</div>
-                                <div style="font-size: 12px; color: #666;">교사 시간표 조회</div>
+                                <div class="feature-title">선생님별 조회</div>
+                                <div class="feature-desc">교사 시간표 조회</div>
                             </div>
                         </label>
                     </div>
                 </div>
             </div>
-            
-            <div id="theme-selection-container" style="margin: 30px 0; text-align: left;">
-                <label style="font-weight: bold; margin-bottom: 15px; display: block; color: #333;">컬러 테마 선택:</label>
-                <div class="theme-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin-bottom: 20px;">
+
+            <div id="theme-selection-container">
+                <label class="section-label">컬러 테마 선택:</label>
+                <div class="theme-grid">
                     <div class="theme-option" data-theme="classic-blue">
-                        <div class="theme-preview" style="background: linear-gradient(135deg, #0F4C81 0%, #2E86AB 100%); height: 40px; border-radius: 8px; margin-bottom: 8px;"></div>
+                        <div class="theme-preview" style="background: linear-gradient(135deg, #0F4C81 0%, #2E86AB 100%);"></div>
                         <div class="theme-name">Classic Blue</div>
                     </div>
                     <div class="theme-option" data-theme="living-coral">
-                        <div class="theme-preview" style="background: linear-gradient(135deg, #FF6F61 0%, #FF8A80 100%); height: 40px; border-radius: 8px; margin-bottom: 8px;"></div>
+                        <div class="theme-preview" style="background: linear-gradient(135deg, #FF6F61 0%, #FF8A80 100%);"></div>
                         <div class="theme-name">Living Coral</div>
                     </div>
                     <div class="theme-option" data-theme="ultra-violet">
-                        <div class="theme-preview" style="background: linear-gradient(135deg, #6B5B95 0%, #8E7DBE 100%); height: 40px; border-radius: 8px; margin-bottom: 8px;"></div>
+                        <div class="theme-preview" style="background: linear-gradient(135deg, #6B5B95 0%, #8E7DBE 100%);"></div>
                         <div class="theme-name">Ultra Violet</div>
                     </div>
                     <div class="theme-option" data-theme="greenery">
-                        <div class="theme-preview" style="background: linear-gradient(135deg, #88B04B 0%, #A8CC8C 100%); height: 40px; border-radius: 8px; margin-bottom: 8px;"></div>
+                        <div class="theme-preview" style="background: linear-gradient(135deg, #88B04B 0%, #A8CC8C 100%);"></div>
                         <div class="theme-name">Greenery</div>
                     </div>
                     <div class="theme-option" data-theme="marsala">
-                        <div class="theme-preview" style="background: linear-gradient(135deg, #955251 0%, #B87071 100%); height: 40px; border-radius: 8px; margin-bottom: 8px;"></div>
+                        <div class="theme-preview" style="background: linear-gradient(135deg, #955251 0%, #B87071 100%);"></div>
                         <div class="theme-name">Marsala</div>
                     </div>
                     <div class="theme-option selected" data-theme="serenity">
-                        <div class="theme-preview" style="background: linear-gradient(135deg, #92A8D1 0%, #B8CAE6 100%); height: 40px; border-radius: 8px; margin-bottom: 8px;"></div>
+                        <div class="theme-preview" style="background: linear-gradient(135deg, #92A8D1 0%, #B8CAE6 100%);"></div>
                         <div class="theme-name">Serenity</div>
                     </div>
                 </div>
             </div>
-            
-            <div class="upload-box" id="upload-box-icon" style="grid-column: 1 / -1; margin-top: 20px;">
-                <div id="icon-preview-container" style="display: none; margin-bottom: 15px;">
-                    <img id="icon-preview" style="max-width: 100px; max-height: 100px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" alt="로고 미리보기">
-                    <p style="margin: 8px 0 0 0; font-size: 12px; color: #666;">업로드된 로고</p>
+
+            <div class="upload-box" id="upload-box-icon">
+                <div id="icon-preview-container">
+                    <img id="icon-preview" alt="로고 미리보기">
+                    <p>업로드된 로고</p>
                 </div>
                 <p>학교 로고/아이콘 업로드 (선택)</p>
                 <span class="file-name">이미지 파일을 선택하거나 끌어다 놓으세요</span>
             </div>
             <input type="file" id="file-input-icon" class="file-input" data-type="icon" accept="image/*">
-            <button id="generate-button" disabled>시간표 조회 시스템 HTML 생성</button>
+            <button id="generate-button" disabled data-disabled-reason="선택과목 정보 파일이 필요합니다">시간표 조회 시스템 HTML 생성</button>
         </div>
 
         <p id="status">1단계: 파일을 업로드해주세요.</p>
     </div>
 
-    <!-- 🔥 외부 템플릿 파일 참조 -->
+    <!-- 토스트 알림 컨테이너 -->
+    <div id="toast-container" aria-live="polite"></div>
+
+    <!-- 외부 템플릿 파일 참조 -->
     <script src="student-timetable-template.js"></script>
 
     <script>
-        // 템플릿 스크립트가 로드될 때까지 기다리기 (타임아웃 추가)
+        // 템플릿 스크립트가 로드될 때까지 기다리기
         function waitForTemplate(callback, timeout = 5000) {
             const startTime = Date.now();
-            
+
             function checkTemplate() {
                 if (typeof window.StudentTimetableTemplate !== 'undefined') {
                     callback();
                 } else if (Date.now() - startTime > timeout) {
-                    alert('템플릿 파일 로딩이 실패했습니다. 페이지를 새로고침하고 다시 시도해주세요.');
+                    showToast('템플릿 파일 로딩이 실패했습니다. 페이지를 새로고침하고 다시 시도해주세요.', 'error');
                     console.error('Template loading timeout');
                 } else {
                     setTimeout(checkTemplate, 50);
                 }
             }
-            
+
             checkTemplate();
         }
     </script>
 
     <script>
-        // 🔥 기존 긴 코드들이 여기에 들어가되, CSS와 템플릿 부분만 제거됨
+        // 기존 로직 - CSS와 템플릿 부분은 외부 파일로 분리됨
         const UPLOAD_BOXES = {
             weekly: document.getElementById('upload-box-weekly'),
             selection: document.getElementById('upload-box-selection'),
@@ -226,47 +263,93 @@
         const STATUS_P = document.getElementById('status');
         const STEP2 = document.getElementById('step2');
         const STEP3 = document.getElementById('step3');
+        const APP_VERSION = document.getElementById('app-version');
 
         let timetableData = {
             weekly: null,
             weeklyFormat: 'formatA',
-            selection: [], 
+            selection: [],
             info: null,
             iconBase64: null,
             selectedTheme: 'serenity'
         };
+
+        // --- 토스트 알림 함수 ---
+        function showToast(message, type = 'info', duration = 4000) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s';
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        // --- 상태 메시지 함수 ---
+        function setStatus(message, type = '') {
+            STATUS_P.textContent = message;
+            STATUS_P.className = type ? `status-${type}` : '';
+        }
+
+        // --- 스텝 인디케이터 업데이트 ---
+        function updateStepIndicator(currentStep) {
+            document.querySelectorAll('.step-item').forEach((item) => {
+                const stepNum = parseInt(item.dataset.step);
+                item.classList.remove('active', 'completed');
+                if (stepNum < currentStep) item.classList.add('completed');
+                else if (stepNum === currentStep) item.classList.add('active');
+            });
+            document.querySelectorAll('.step-connector').forEach((connector, index) => {
+                connector.classList.toggle('completed', index + 1 < currentStep);
+            });
+        }
+
+        // --- 로딩 오버레이 ---
+        function showLoading(message = '생성 중...') {
+            const overlay = document.createElement('div');
+            overlay.className = 'loading-overlay';
+            overlay.id = 'loading-overlay';
+            overlay.innerHTML = `<div class="spinner"></div><div class="loading-text">${message}</div>`;
+            document.body.appendChild(overlay);
+        }
+
+        function hideLoading() {
+            const overlay = document.getElementById('loading-overlay');
+            if (overlay) overlay.remove();
+        }
+
+        function updateAppVersionTimestamp() {
+            if (!APP_VERSION) return;
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const hh = String(now.getHours()).padStart(2, '0');
+            const min = String(now.getMinutes()).padStart(2, '0');
+            APP_VERSION.textContent = `Last updated : ${yyyy}.${mm}.${dd} ${hh}:${min}`;
+        }
+
+        updateAppVersionTimestamp();
 
         // --- Event Listeners ---
         Object.keys(UPLOAD_BOXES).forEach(type => {
             UPLOAD_BOXES[type].addEventListener('click', () => FILE_INPUTS[type].click());
             FILE_INPUTS[type].addEventListener('change', (e) => handleFileSelect(e.target.files, type));
 
-            UPLOAD_BOXES[type].addEventListener('dragover', e => { 
-                e.preventDefault(); 
-                if (type === 'info') {
-                    UPLOAD_BOXES[type].style.backgroundColor = '#f0f7ff';
-                    UPLOAD_BOXES[type].style.borderColor = '#1976d2';
-                } else {
-                    e.currentTarget.style.backgroundColor = '#e9ecef'; 
-                }
+            UPLOAD_BOXES[type].addEventListener('dragover', e => {
+                e.preventDefault();
+                UPLOAD_BOXES[type].classList.add('dragover');
             });
-            UPLOAD_BOXES[type].addEventListener('dragleave', e => { 
-                e.preventDefault(); 
-                if (type === 'info') {
-                    UPLOAD_BOXES[type].style.backgroundColor = '';
-                    UPLOAD_BOXES[type].style.borderColor = '';
-                } else {
-                    e.currentTarget.style.backgroundColor = '#f8f9fa'; 
-                }
+            UPLOAD_BOXES[type].addEventListener('dragleave', e => {
+                e.preventDefault();
+                UPLOAD_BOXES[type].classList.remove('dragover');
             });
             UPLOAD_BOXES[type].addEventListener('drop', e => {
                 e.preventDefault();
-                if (type === 'info') {
-                    UPLOAD_BOXES[type].style.backgroundColor = '';
-                    UPLOAD_BOXES[type].style.borderColor = '';
-                } else {
-                    e.currentTarget.style.backgroundColor = '#f8f9fa';
-                }
+                UPLOAD_BOXES[type].classList.remove('dragover');
                 handleFileSelect(e.dataTransfer.files, type);
             });
         });
@@ -274,13 +357,13 @@
         TEMPLATE_GEN_BUTTON.addEventListener('click', generateInfoTemplate);
         REDOWNLOAD_TEMPLATE_BUTTON.addEventListener('click', redownloadTemplate);
         GENERATE_BUTTON.addEventListener('click', generateAndDownloadHtml);
-        
+
         // 테마 선택 이벤트 리스너
         document.addEventListener('click', (e) => {
             if (e.target.closest('.theme-option')) {
                 const clickedOption = e.target.closest('.theme-option');
                 const themeOptions = document.querySelectorAll('.theme-option');
-                
+
                 themeOptions.forEach(opt => opt.classList.remove('selected'));
                 clickedOption.classList.add('selected');
                 timetableData.selectedTheme = clickedOption.dataset.theme;
@@ -293,7 +376,7 @@
 
             Array.from(files).forEach(file => {
                 const reader = new FileReader();
-                
+
                 if (type === 'icon') {
                      reader.onload = (e) => {
                         timetableData.iconBase64 = e.target.result;
@@ -314,16 +397,15 @@
                         const previewData = XLSX.utils.sheet_to_json(worksheet, { header: 1, range: 'A1:Z10' });
                         timetableData.weeklyFormat = detectTimetableFormat(previewData);
                         const formatName = timetableData.weeklyFormat === 'formatB' ? '압핀 양식' : '컴시간 양식';
-                        
+
                         const headerRow = timetableData.weeklyFormat === 'formatB' ? 0 : 0;
                         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, range: headerRow, defval: "" });
-                        
-                        // 디버깅을 위한 처음 5행 출력
-                        console.log('업로드된 엑셀 파일 처음 5행:');
+
+                        console.log('[UPLOAD] 엑셀 파일 처음 5행:');
                         for (let i = 0; i < Math.min(5, jsonData.length); i++) {
                             console.log(`${i+1}행:`, jsonData[i]);
                         }
-                        
+
                         timetableData.weekly = jsonData;
                         updateUploadBoxUI('weekly', `${file.name} (${formatName} 감지)`);
 
@@ -338,13 +420,13 @@
                         timetableData[type] = jsonData;
                         updateUploadBoxUI(type, file.name);
                     }
-                    
+
                     checkFilesForStep1();
                     if(type === 'info') checkFilesForStep3();
                 };
                 reader.onerror = (error) => {
-                    console.error('파일 읽기 오류:', error);
-                    STATUS_P.textContent = `"${file.name}" 파일 읽기 오류: ${error.message || '파일 형식을 확인해주세요.'}`;
+                    console.error('[ERROR] 파일 읽기 오류:', error);
+                    setStatus(`"${file.name}" 파일 읽기 오류: ${error.message || '파일 형식을 확인해주세요.'}`, 'error');
                     updateUploadBoxUI(type, '오류', false);
                 };
                 reader.readAsArrayBuffer(file);
@@ -357,15 +439,15 @@
                 const fileStatus = document.getElementById('file-status-info');
                 const uploadTitle = box.querySelector('.upload-title');
                 const uploadSubtitle = box.querySelector('.upload-subtitle');
-                
+
                 if (isSuccess) {
                     box.classList.add('uploaded');
-                    fileStatus.textContent = `✅ ${text}`;
+                    fileStatus.textContent = `${text} (업로드 완료)`;
                     uploadTitle.textContent = '업로드 완료!';
                     uploadSubtitle.textContent = '파일이 성공적으로 업로드되었습니다';
                 } else {
                     box.classList.remove('uploaded');
-                    fileStatus.textContent = '❌ 오류';
+                    fileStatus.textContent = '오류 발생';
                     uploadTitle.textContent = '업로드 오류';
                     uploadSubtitle.textContent = '파일을 다시 확인해주세요';
                 }
@@ -376,23 +458,23 @@
                 else box.classList.remove('uploaded');
             }
         }
-        
+
         function showImagePreview(imageSrc) {
             const previewContainer = document.getElementById('icon-preview-container');
             const previewImg = document.getElementById('icon-preview');
             previewImg.src = imageSrc;
             previewContainer.style.display = 'block';
         }
-        
+
         function redownloadTemplate() {
             if (!timetableData.info || timetableData.info.length === 0) {
-                alert('먼저 템플릿을 생성해주세요.');
+                showToast('먼저 템플릿을 생성해주세요.', 'warning');
                 return;
             }
-            
+
             const worksheet = XLSX.utils.aoa_to_sheet(timetableData.info);
-            const colWidths = timetableData.info[0].map((_, i) => ({ 
-                wch: timetableData.info.reduce((w, r) => Math.max(w, String(r[i] || '').length), 10) 
+            const colWidths = timetableData.info[0].map((_, i) => ({
+                wch: timetableData.info.reduce((w, r) => Math.max(w, String(r[i] || '').length), 10)
             }));
             worksheet['!cols'] = colWidths;
             const workbook = XLSX.utils.book_new();
@@ -406,21 +488,23 @@
             link.click();
             URL.revokeObjectURL(link.href);
             document.body.removeChild(link);
-            
-            STATUS_P.textContent = '템플릿이 다시 다운로드되었습니다!';
+
+            setStatus('템플릿이 다시 다운로드되었습니다!', 'success');
         }
-        
+
         function checkFilesForStep1() {
             if (timetableData.weekly && timetableData.selection.length > 0) {
                 TEMPLATE_GEN_BUTTON.disabled = false;
-                STATUS_P.textContent = '1단계 완료! 템플릿 생성 버튼을 눌러주세요.';
+                TEMPLATE_GEN_BUTTON.removeAttribute('data-disabled-reason');
+                setStatus('1단계 완료! 템플릿 생성 버튼을 눌러주세요.', 'success');
             }
         }
-        
+
         function checkFilesForStep3() {
             if (timetableData.info) {
                  GENERATE_BUTTON.disabled = false;
-                 STATUS_P.textContent = '모든 파일 준비 완료! 최종 HTML을 생성하세요.';
+                 GENERATE_BUTTON.removeAttribute('data-disabled-reason');
+                 setStatus('모든 파일 준비 완료! 최종 HTML을 생성하세요.', 'success');
             }
         }
 
@@ -433,14 +517,14 @@
             }
             return 'formatA';
         }
-        
+
         // --- Template Generation Logic ---
         function generateInfoTemplate() {
             try {
                 const allSelections = {};
                 timetableData.selection.forEach(file => {
                     if (!file.data || file.data.length < 2) {
-                        console.warn(`파일 ${file.name}에 유효한 데이터가 없습니다.`);
+                        console.warn(`[WARN] 파일 ${file.name}에 유효한 데이터가 없습니다.`);
                         return;
                     }
                     const header = file.data[0];
@@ -486,22 +570,22 @@
                         const subjectRow = weeklyRaw[i];
                         const locationRow = weeklyRaw[i + 1];
                         if (!locationRow || (locationRow[0] !== '' && locationRow[0] !== null)) continue;
-                        
+
                         for (let col = 1; col < subjectRow.length; col++) {
                             const subject = subjectRow[col];
                             const location = locationRow[col];
                             const timeInfo = columnMap[col];
                             if (subject && location && timeInfo) {
-                                const subjectMatch = String(subject).match(/^([A-Z])\s?/); 
+                                const subjectMatch = String(subject).match(/^([A-Z])\s?/);
                                 const locationMatch = String(location).match(/^(\d)-(\d+)/);
-                                
+
                                 if (subjectMatch && locationMatch) {
                                     const grade = locationMatch[1];
                                     const group = subjectMatch[1];
                                     const key = `${grade}_${group}`;
-                                    
+
                                     if (!groupTimings[key]) groupTimings[key] = [];
-                                    
+
                                     if (!groupTimings[key].some(t => t.day === timeInfo.day && t.period === timeInfo.period)) {
                                          groupTimings[key].push(timeInfo);
                                     }
@@ -510,12 +594,12 @@
                         }
                         i++;
                     }
-                } else { // formatA (컴시간 양식 - 새로운 동적 파싱 사용)
+                } else { // formatA (컴시간 양식)
                     const totalCells = weeklyRaw[0].length - 1;
                     const periodStructure = calculatePeriodStructure(totalCells, weeklyRaw);
-                    console.log('템플릿 생성에서 사용할 교시 구조:', periodStructure);
+                    console.log('[TEMPLATE] 교시 구조:', periodStructure);
                     const daysInOrder = ['월', '화', '수', '목', '금'];
-                    
+
                     weeklyRaw.forEach(row => {
                         const scheduleData = row.slice(1);
                         let currentIndex = 0;
@@ -523,10 +607,10 @@
                             const day = daysInOrder[i];
                             const count = periodStructure.periodCounts[i] || 0;
                             const daySchedule = scheduleData.slice(currentIndex, currentIndex + count);
-                            
+
                             daySchedule.forEach((cell, periodIndex) => {
                                 if (cell) {
-                                    const cellStr = String(cell); 
+                                    const cellStr = String(cell);
                                     const match = cellStr.match(/^(\d)\d{2}\s+([A-Za-z0-9]+)_/);
                                     if (match) {
                                         const grade = match[1];
@@ -541,17 +625,17 @@
                         }
                     });
                 }
-                
+
                 const findTimeInfo = (grade, group, timings) => {
                     let allTimes = [];
                     const checkAndAddTime = (key) => { if (timings[key]) allTimes.push(...timings[key]); };
-                    
+
                     checkAndAddTime(`${grade}_${group}`);
                     checkAndAddTime(`${grade}_${group.toUpperCase()}`);
                     if (group.length > 0) checkAndAddTime(`${grade}_${group.charAt(0).toUpperCase()}`);
-                    
+
                     return allTimes.filter((time, index, self) => index === self.findIndex((t) => t.day === time.day && t.period === time.period));
-                }
+                };
 
                 const templateRows = [['학년', '선택반명', '교과명', '수업교실', '수업교사명', '수업시간', '축약-교과명']];
                 selectionList.forEach(sel => {
@@ -577,58 +661,55 @@
                 link.click();
                 URL.revokeObjectURL(link.href);
                 document.body.removeChild(link);
-                
-                STATUS_P.textContent = '기본 템플릿 생성 완료! 수정이 필요하면 다운로드된 파일을 2단계에 업로드하고, 아니면 바로 3단계로 진행하세요.';
+
+                setStatus('기본 템플릿 생성 완료! 수정이 필요하면 다운로드된 파일을 2단계에 업로드하고, 아니면 바로 3단계로 진행하세요.', 'success');
                 STEP2.style.display = 'block';
                 STEP3.style.display = 'block';
                 REDOWNLOAD_TEMPLATE_BUTTON.disabled = false;
+                updateStepIndicator(2);
                 checkFilesForStep3();
             } catch (error) {
-                STATUS_P.textContent = '템플릿 생성 중 오류가 발생했습니다. 콘솔을 확인해주세요.';
-                console.error("Template generation error:", error);
+                setStatus('템플릿 생성 중 오류가 발생했습니다. 콘솔을 확인해주세요.', 'error');
+                console.error("[ERROR] Template generation:", error);
             }
         }
 
         // --- Final HTML Generation Logic ---
         function calculatePeriodStructure(totalCells, weeklyRaw = null) {
-            // 실제 엑셀 데이터가 있다면 2행과 3행을 분석해서 정확한 교시 구조를 파악
             if (weeklyRaw && weeklyRaw.length >= 3) {
                 try {
                     const result = parseDynamicPeriodStructure(weeklyRaw, totalCells);
                     if (result) {
-                        console.log('동적 파싱 성공:', result);
+                        console.log('[PARSE] 동적 파싱 성공:', result);
                         return result;
                     }
                 } catch (error) {
-                    console.warn('동적 교시 구조 파싱 중 오류:', error);
+                    console.warn('[PARSE] 동적 교시 구조 파싱 중 오류:', error);
                 }
             }
-            
-            // 기존 로직: 미리 정의된 패턴 사용
+
             const commonPatterns = [
                 [7, 7, 7, 6, 6], [7, 7, 6, 7, 6], [7, 7, 7, 7, 7], [6, 6, 6, 6, 6], [8, 8, 8, 7, 7],
                 [7, 7, 6, 6, 6], [7, 6, 6, 6, 6], [8, 8, 7, 7, 7], [8, 7, 7, 7, 7], [7, 7, 4, 7, 5]
             ];
             for (const pattern of commonPatterns) {
                 if (pattern.reduce((a, b) => a + b, 0) === totalCells) {
-                    console.log(`패턴 매칭됨: [${pattern.join(', ')}], 총 셀 수: ${totalCells}`);
+                    console.log(`[PARSE] 패턴 매칭: [${pattern.join(', ')}], 총 셀 수: ${totalCells}`);
                     return { periodCounts: pattern, maxPeriods: Math.max(...pattern) };
                 }
             }
-            console.log(`기본 패턴 사용: [7, 7, 7, 6, 6], 총 셀 수: ${totalCells}`);
+            console.log(`[PARSE] 기본 패턴 사용: [7, 7, 7, 6, 6], 총 셀 수: ${totalCells}`);
             return { periodCounts: [7, 7, 7, 6, 6], maxPeriods: 7 };
         }
-        
-        // 새로운 동적 교시 구조 파싱 함수
+
         function parseDynamicPeriodStructure(weeklyRaw, totalCells) {
             const daysInOrder = ['월', '화', '수', '목', '금'];
-            const row2 = weeklyRaw[1] || []; // 2행 - 요일이 병합되어 있음
-            const row3 = weeklyRaw[2] || []; // 3행 - 교시 숫자
-            
-            console.log('2행 (요일):', row2);
-            console.log('3행 (교시):', row3);
-            
-            // 1단계: 2행에서 요일 위치 찾기
+            const row2 = weeklyRaw[1] || [];
+            const row3 = weeklyRaw[2] || [];
+
+            console.log('[PARSE] 2행 (요일):', row2);
+            console.log('[PARSE] 3행 (교시):', row3);
+
             const dayPositions = [];
             for (let col = 0; col < row2.length; col++) {
                 const cellValue = row2[col];
@@ -639,20 +720,16 @@
                     });
                 }
             }
-            
-            console.log('요일 위치들:', dayPositions);
-            
-            // 2단계: 각 요일의 교시 범위 계산
+
+            console.log('[PARSE] 요일 위치들:', dayPositions);
+
             const dayPeriodMap = {};
-            
+
             for (let i = 0; i < dayPositions.length; i++) {
                 const currentDay = dayPositions[i];
                 const nextDay = dayPositions[i + 1];
-                
-                // 현재 요일의 끝 위치 계산
                 const endCol = nextDay ? nextDay.startCol - 1 : row3.length - 1;
-                
-                // 해당 범위에서 최대 교시 수 찾기
+
                 let maxPeriod = 0;
                 const periodsFound = [];
                 for (let col = currentDay.startCol; col <= endCol; col++) {
@@ -667,47 +744,40 @@
                         }
                     }
                 }
-                console.log(`${currentDay.day}요일 범위 ${currentDay.startCol}~${endCol}에서 발견된 교시:`, periodsFound, '최대:', maxPeriod);
-                
+                console.log(`[PARSE] ${currentDay.day}요일 범위 ${currentDay.startCol}~${endCol}: 교시 ${periodsFound}, 최대: ${maxPeriod}`);
+
                 if (maxPeriod > 0) {
                     dayPeriodMap[currentDay.day] = maxPeriod;
-                    console.log(`${currentDay.day}요일: ${maxPeriod}교시 (열 ${currentDay.startCol}~${endCol})`);
                 }
             }
-            
-            // 3단계: 결과 구성
+
             const periodCounts = [];
             for (const day of daysInOrder) {
                 periodCounts.push(dayPeriodMap[day] || 0);
             }
-            
+
             const totalCalculated = periodCounts.reduce((a, b) => a + b, 0);
-            console.log('동적 파싱 결과:', periodCounts, '총합:', totalCalculated);
-            
-            // 결과 검증 (더 관대하게)
+            console.log('[PARSE] 동적 파싱 결과:', periodCounts, '총합:', totalCalculated);
+
             if (totalCalculated > 0) {
-                console.log('동적 파싱 성공! 결과 반환:', {
-                    periodCounts: periodCounts,
-                    maxPeriods: Math.max(...periodCounts)
-                });
                 return {
                     periodCounts: periodCounts,
                     maxPeriods: Math.max(...periodCounts)
                 };
             }
-            
+
             return null;
         }
-        
+
         function parseSubjectAndTeacher(rawString) {
             if (!rawString) return { subject: '', teacher: '' };
-            
+
             const patterns = [
-                /^(.+?)\((.+?)\)$/, // 과목명(교사명)
-                /^(.+?)\s+([가-힣]{2,4})$/, // 과목명 교사명 (한글 2-4자)
-                /^(.+)$/ // 과목명만
+                /^(.+?)\((.+?)\)$/,
+                /^(.+?)\s+([가-힣]{2,4})$/,
+                /^(.+)$/
             ];
-            
+
             for (const pattern of patterns) {
                 const match = rawString.match(pattern);
                 if (match) {
@@ -720,10 +790,10 @@
                     }
                 }
             }
-            
+
             return { subject: rawString.trim(), teacher: '' };
         }
-        
+
         function cleanTeacherName(teacherName) {
             if (!teacherName) return '';
             return teacherName.replace(/\(\d+\)$/, '').trim();
@@ -738,7 +808,7 @@
             if (timetableData.weeklyFormat === 'formatB') {
                 const dayHeaders = weeklyRaw[2] || [];
                 const periodHeaders = weeklyRaw[3] || [];
-                
+
                 let dayRanges = {};
                 let currentDay = '';
                 for (let i = 1; i < dayHeaders.length; i++) {
@@ -750,7 +820,7 @@
                         dayRanges[currentDay].push({ period: periodHeaders[i], column: i });
                     }
                 }
-                
+
                 const periodCounts = daysInOrder.map(day => dayRanges[day] ? dayRanges[day].length : 0);
                 maxPeriods = Math.max(...periodCounts, 0);
                 periodStructure = { periodCounts, maxPeriods };
@@ -760,16 +830,16 @@
                 for (let i = 0; i < weeklyRaw.length; i++) {
                     const row = weeklyRaw[i];
                     if (!row || !row[0]) continue;
-                    
+
                     const classMatch = String(row[0]).match(/^(\d)-(\d+)$/);
                     if (classMatch) {
                         const homeroom = `${classMatch[1]}-${classMatch[2]}`;
                         teacherInfo[homeroom] = {};
-                        
+
                         daysInOrder.forEach(day => {
                             if (!dayRanges[day]) return;
                             teacherInfo[homeroom][day] = {};
-                            
+
                             dayRanges[day].forEach(periodInfo => {
                                 const cellValue = row[periodInfo.column];
                                 if (cellValue) {
@@ -790,7 +860,7 @@
 
                     if (!subjectRow || !locationRow) continue;
                     if (locationRow[0] !== '' && locationRow[0] !== null && locationRow[0] !== undefined) continue;
-                    
+
                     daysInOrder.forEach(day => {
                         if (!dayRanges[day]) return;
                         dayRanges[day].forEach(periodInfo => {
@@ -799,26 +869,26 @@
 
                             if (subject && location) {
                                 const periodIndex = parseInt(periodInfo.period, 10);
-                                
+
                                 if (/^\d+-\d+$/.test(String(location).trim())) {
                                     const homeroom = String(location).trim();
                                     if (!fixedSchedules[homeroom]) {
                                         fixedSchedules[homeroom] = { schedule: {} };
-                                        daysInOrder.forEach(d => { 
-                                            fixedSchedules[homeroom].schedule[d] = Array(maxPeriods).fill(null); 
+                                        daysInOrder.forEach(d => {
+                                            fixedSchedules[homeroom].schedule[d] = Array(maxPeriods).fill(null);
                                         });
                                     }
-                                    
+
                                     if (periodIndex >= 1) {
                                         const arrayIndex = periodIndex - 1;
-                                        const teacherName = teacherInfo[homeroom] && 
-                                                           teacherInfo[homeroom][day] && 
+                                        const teacherName = teacherInfo[homeroom] &&
+                                                           teacherInfo[homeroom][day] &&
                                                            teacherInfo[homeroom][day][periodIndex] || '';
-                                        
+
                                         const subjectName = String(subject).trim();
-                                        
-                                        fixedSchedules[homeroom].schedule[day][arrayIndex] = { 
-                                            subject: subjectName, 
+
+                                        fixedSchedules[homeroom].schedule[day][arrayIndex] = {
+                                            subject: subjectName,
                                             teacher: teacherName,
                                             location: ''
                                         };
@@ -828,14 +898,14 @@
                         });
                     });
                 }
-                
+
                 for (let i = 4; i < weeklyRaw.length; i += 2) {
                     const subjectRow = weeklyRaw[i];
                     const locationRow = weeklyRaw[i + 1];
 
                     if (!subjectRow || !locationRow) continue;
                     if (locationRow[0] !== '' && locationRow[0] !== null && locationRow[0] !== undefined) continue;
-                    
+
                     daysInOrder.forEach(day => {
                         if (!dayRanges[day]) return;
                         dayRanges[day].forEach(periodInfo => {
@@ -846,7 +916,7 @@
                                 const classroomName = String(location).trim();
                                 const subjectName = String(subject).trim();
                                 const periodIndex = parseInt(periodInfo.period, 10);
-                                
+
                                 Object.keys(fixedSchedules).forEach(homeroom => {
                                     const arrayIndex = periodIndex - 1;
                                     if (arrayIndex >= 0 && fixedSchedules[homeroom].schedule[day][arrayIndex]) {
@@ -860,7 +930,7 @@
                         });
                     });
                 }
-                
+
             } else { // formatA (컴시간 양식)
                 const totalCells = weeklyRaw.length > 0 && weeklyRaw[0].length > 1 ? weeklyRaw[0].length - 1 : 33;
                 periodStructure = calculatePeriodStructure(totalCells, weeklyRaw);
@@ -869,22 +939,18 @@
                 weeklyRaw.forEach(row => {
                     const teacherName = cleanTeacherName(row[0] ? String(row[0]).trim() : '');
                     const scheduleData = row.slice(1);
-                    
-                    // 각 요일별로 정확한 시작 인덱스 계산
+
                     for (let i = 0; i < daysInOrder.length; i++) {
                         const day = daysInOrder[i];
                         const count = periodStructure.periodCounts[i] || 0;
-                        
-                        // 각 요일의 실제 시작 인덱스 계산 (누적)
+
                         let startIndex = 0;
                         for (let j = 0; j < i; j++) {
                             startIndex += periodStructure.periodCounts[j] || 0;
                         }
-                        
-                        
-                        // 현재 요일의 데이터 추출
+
                         const daySchedule = scheduleData.slice(startIndex, startIndex + count);
-                        
+
                         daySchedule.forEach((cell, periodIndex) => {
                             if (cell) {
                                 const cellStr = String(cell);
@@ -893,20 +959,19 @@
                                     const grade = classIdentifier.charAt(0);
                                     const classNum = classIdentifier.substring(1).replace(/^0/, '');
                                     const homeroom = `${grade}-${classNum}`;
-                                    
-                                    
+
                                     if (!fixedSchedules[homeroom]) {
                                         fixedSchedules[homeroom] = { schedule: {} };
-                                        daysInOrder.forEach(d => { 
-                                            fixedSchedules[homeroom].schedule[d] = Array(maxPeriods).fill(null); 
+                                        daysInOrder.forEach(d => {
+                                            fixedSchedules[homeroom].schedule[d] = Array(maxPeriods).fill(null);
                                         });
                                     }
-                                    
+
                                     const remainingText = cellStr.substring(4).trim();
-                                    
+
                                     let classroom = '';
                                     let subjectAndTeacher = remainingText;
-                                    
+
                                     const classroomPatterns = [
                                         /^(\d+\w*)\s+(.+)$/,
                                         /^(\w+실\d*)\s+(.+)$/,
@@ -914,7 +979,7 @@
                                         /^([A-Za-z]\d*)\s+(.+)$/,
                                         /^(\w+관\d*)\s+(.+)$/
                                     ];
-                                    
+
                                     for (const pattern of classroomPatterns) {
                                         const match = remainingText.match(pattern);
                                         if (match) {
@@ -923,12 +988,12 @@
                                             break;
                                         }
                                     }
-                                    
+
                                     const parsedInfo = parseSubjectAndTeacher(subjectAndTeacher);
                                     const finalTeacherName = parsedInfo.teacher || teacherName;
-                                    
-                                    fixedSchedules[homeroom].schedule[day][periodIndex] = { 
-                                        subject: parsedInfo.subject, 
+
+                                    fixedSchedules[homeroom].schedule[day][periodIndex] = {
+                                        subject: parsedInfo.subject,
                                         teacher: finalTeacherName,
                                         location: classroom
                                     };
@@ -938,18 +1003,18 @@
                     }
                 });
             }
-            
+
             // 선택과목 정보 처리
             const electiveInfoMap = {};
             const electiveRows = timetableData.info.slice(1);
             electiveRows.forEach(row => {
                 if (!row[0] || !row[1] || !row[2]) return;
                 const key = `${row[0]}_${row[2]}_${row[1]}`;
-                electiveInfoMap[key] = { 
-                    subject: row[6] || row[2], 
-                    location: row[3], 
-                    teacher: row[4], 
-                    times: row[5] 
+                electiveInfoMap[key] = {
+                    subject: row[6] || row[2],
+                    location: row[3],
+                    teacher: row[4],
+                    times: row[5]
                 };
             });
 
@@ -960,21 +1025,21 @@
                 const selectionRows = file.data.slice(1);
                 selectionRows.forEach(row => {
                     if (!row[1] || !row[2] || !row[4]) return;
-                    
+
                     const grade = row[1];
                     const classNum = row[2];
-                    const student = { 
-                        name: row[4], 
-                        studentId: row[3] || '', // 학번 필드 
-                        homeroom: `${grade}-${classNum}`, 
-                        number: row[3] || '', // 번호 필드
-                        schedule: {}, 
-                        maxPeriods: periodStructure.maxPeriods, 
-                        periodCounts: periodStructure.periodCounts 
+                    const student = {
+                        name: row[4],
+                        studentId: row[3] || '',
+                        homeroom: `${grade}-${classNum}`,
+                        number: row[3] || '',
+                        schedule: {},
+                        maxPeriods: periodStructure.maxPeriods,
+                        periodCounts: periodStructure.periodCounts
                     };
-                    
-                    daysInOrder.forEach(d => { 
-                        student.schedule[d] = Array(student.maxPeriods).fill(''); 
+
+                    daysInOrder.forEach(d => {
+                        student.schedule[d] = Array(student.maxPeriods).fill('');
                     });
 
                     // 선택과목 배치
@@ -998,7 +1063,7 @@
                                     <span class="elective-class-name" style="display:none;">${selectionGroup}</span>
                                     ${details.length > 0 ? `<div class="details">${details.join('<br>')}</div>` : ''}
                                 `;
-                                
+
                                 const timeParts = info.times.split(',').filter(t => t.trim());
                                 timeParts.forEach(part => {
                                     const dayMatch = part.match(/^[월화수목금]/);
@@ -1046,68 +1111,73 @@
 
         function generateAndDownloadHtml() {
             if (!timetableData.weekly || timetableData.selection.length === 0 || !timetableData.info) {
-                alert("모든 파일이 올바르게 업로드되었는지 확인해주세요.");
+                showToast("모든 파일이 올바르게 업로드되었는지 확인해주세요.", 'error');
                 return;
             }
-            
-            // 템플릿이 로드될 때까지 기다린 후 실행
-            waitForTemplate(() => {
-                generateHtmlAfterTemplateLoaded();
-            });
+
+            updateStepIndicator(3);
+            showLoading('시간표 HTML을 생성하고 있습니다...');
+
+            // 잠시 대기 후 실행하여 로딩 UI가 먼저 표시되도록
+            setTimeout(() => {
+                waitForTemplate(() => {
+                    generateHtmlAfterTemplateLoaded();
+                });
+            }, 100);
         }
-        
+
         function generateHtmlAfterTemplateLoaded() {
             try {
                 const studentsData = processAllData();
                 if (studentsData.length === 0) {
-                    alert("처리할 학생 데이터가 없습니다. 엑셀 파일 내용을 확인해주세요.");
+                    hideLoading();
+                    showToast("처리할 학생 데이터가 없습니다. 엑셀 파일 내용을 확인해주세요.", 'error');
                     return;
                 }
-                
-                // 선택된 기능들 확인
+
                 const selectedFeatures = {
                     student: document.getElementById('feature-student').checked,
                     class: document.getElementById('feature-class').checked,
                     classroom: document.getElementById('feature-classroom').checked,
                     teacher: document.getElementById('feature-teacher').checked
                 };
-                
-                // 디버깅용 로그
-                console.log('Selected features:', selectedFeatures);
-                
-                // 최소 하나의 기능은 선택되어야 함
+
+                console.log('[GENERATE] Selected features:', selectedFeatures);
+
                 const hasAnyFeature = Object.values(selectedFeatures).some(feature => feature);
                 if (!hasAnyFeature) {
-                    alert("최소 하나의 조회 기능을 선택해주세요.");
+                    hideLoading();
+                    showToast("최소 하나의 조회 기능을 선택해주세요.", 'warning');
                     return;
                 }
-                
+
                 const pageTitle = document.getElementById('timetable-title').value.trim() || '시간표 조회 시스템';
                 const dataString = JSON.stringify(studentsData);
-                
-                // 템플릿 객체가 로드되었는지 확인
+
                 if (typeof window.StudentTimetableTemplate === 'undefined') {
-                    alert('템플릿 파일이 제대로 로드되지 않았습니다. 페이지를 새로고침해주세요.');
-                    console.error('StudentTimetableTemplate is not defined');
+                    hideLoading();
+                    showToast('템플릿 파일이 제대로 로드되지 않았습니다. 페이지를 새로고침해주세요.', 'error');
+                    console.error('[ERROR] StudentTimetableTemplate is not defined');
                     return;
                 }
-                
+
                 if (typeof window.StudentTimetableTemplate.getHtmlTemplate !== 'function') {
-                    alert('템플릿 함수가 올바르지 않습니다. student-timetable-template.js 파일을 확인해주세요.');
-                    console.error('getHtmlTemplate function not found');
+                    hideLoading();
+                    showToast('템플릿 함수가 올바르지 않습니다. student-timetable-template.js 파일을 확인해주세요.', 'error');
+                    console.error('[ERROR] getHtmlTemplate function not found');
                     return;
                 }
-                
+
                 const finalHtml = window.StudentTimetableTemplate.getHtmlTemplate(
-                    dataString, 
-                    pageTitle, 
-                    timetableData.iconBase64, 
+                    dataString,
+                    pageTitle,
+                    timetableData.iconBase64,
                     timetableData.selectedTheme,
                     selectedFeatures,
                     timetableData.weekly,
                     timetableData.weeklyFormat
                 );
-                
+
                 const blob = new Blob([finalHtml], { type: 'text/html;charset=utf-8' });
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
@@ -1116,10 +1186,14 @@
                 link.click();
                 URL.revokeObjectURL(link.href);
                 document.body.removeChild(link);
-                STATUS_P.textContent = '최종 HTML 파일 다운로드가 완료되었습니다!';
+
+                hideLoading();
+                setStatus('최종 HTML 파일 다운로드가 완료되었습니다!', 'success');
+                showToast('HTML 파일이 성공적으로 생성되었습니다!', 'success');
             } catch(e) {
-                STATUS_P.textContent = '오류 발생! ' + e.message + '. 개발자 도구(F12) 콘솔을 확인하세요.';
-                console.error(e);
+                hideLoading();
+                setStatus('오류 발생! ' + e.message + '. 개발자 도구(F12) 콘솔을 확인하세요.', 'error');
+                console.error('[ERROR]', e);
             }
         }
     </script>
