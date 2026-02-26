@@ -1004,18 +1004,21 @@
                 });
             }
 
-            // 선택과목 정보 처리
+            // 선택과목 정보 처리 (같은 키에 여러 교사가 있을 수 있으므로 배열로 저장)
             const electiveInfoMap = {};
             const electiveRows = timetableData.info.slice(1);
             electiveRows.forEach(row => {
                 if (!row[0] || !row[1] || !row[2]) return;
                 const key = `${row[0]}_${row[2]}_${row[1]}`;
-                electiveInfoMap[key] = {
+                if (!electiveInfoMap[key]) {
+                    electiveInfoMap[key] = [];
+                }
+                electiveInfoMap[key].push({
                     subject: row[6] || row[2],
                     location: row[3],
                     teacher: row[4],
                     times: row[5]
-                };
+                });
             });
 
             // 학생별 시간표 생성
@@ -1042,39 +1045,42 @@
                         student.schedule[d] = Array(student.maxPeriods).fill('');
                     });
 
-                    // 선택과목 배치
+                    // 선택과목 배치 (같은 키에 여러 교사가 있을 수 있으므로 배열 순회)
                     for (let i = 5; i < selectionHeader.length; i++) {
                         const subjectNameFromHeader = selectionHeader[i];
                         const selectionGroup = row[i];
                         if (subjectNameFromHeader && selectionGroup) {
                             const key = `${grade}_${subjectNameFromHeader}_${selectionGroup}`;
-                            const info = electiveInfoMap[key];
-                            if (info && info.times) {
-                                const details = [];
-                                if (info.location) {
-                                    details.push(`<span class="location-chip">${info.location}</span>`);
-                                }
-                                if (info.teacher) {
-                                    details.push(`<span class="teacher-name">${info.teacher}</span>`);
-                                }
-
-                                const content = `
-                                    <div class="subject-name">${info.subject}</div>
-                                    <span class="elective-class-name" style="display:none;">${selectionGroup}</span>
-                                    ${details.length > 0 ? `<div class="details">${details.join('<br>')}</div>` : ''}
-                                `;
-
-                                const timeParts = info.times.split(',').filter(t => t.trim());
-                                timeParts.forEach(part => {
-                                    const dayMatch = part.match(/^[월화수목금]/);
-                                    const periodMatch = part.match(/\d+$/);
-                                    if (dayMatch && periodMatch) {
-                                        const day = dayMatch[0];
-                                        const periodIndex = parseInt(periodMatch[0], 10) - 1;
-                                        if (student.schedule[day] && periodIndex >= 0 && periodIndex < student.maxPeriods) {
-                                            student.schedule[day][periodIndex] = content;
-                                        }
+                            const infoList = electiveInfoMap[key];
+                            if (infoList) {
+                                infoList.forEach(info => {
+                                    if (!info.times) return;
+                                    const details = [];
+                                    if (info.location) {
+                                        details.push(`<span class="location-chip">${info.location}</span>`);
                                     }
+                                    if (info.teacher) {
+                                        details.push(`<span class="teacher-name">${info.teacher}</span>`);
+                                    }
+
+                                    const content = `
+                                        <div class="subject-name">${info.subject}</div>
+                                        <span class="elective-class-name" style="display:none;">${selectionGroup}</span>
+                                        ${details.length > 0 ? `<div class="details">${details.join('<br>')}</div>` : ''}
+                                    `;
+
+                                    const timeParts = info.times.split(',').filter(t => t.trim());
+                                    timeParts.forEach(part => {
+                                        const dayMatch = part.match(/^[월화수목금]/);
+                                        const periodMatch = part.match(/\d+$/);
+                                        if (dayMatch && periodMatch) {
+                                            const day = dayMatch[0];
+                                            const periodIndex = parseInt(periodMatch[0], 10) - 1;
+                                            if (student.schedule[day] && periodIndex >= 0 && periodIndex < student.maxPeriods) {
+                                                student.schedule[day][periodIndex] = content;
+                                            }
+                                        }
+                                    });
                                 });
                             }
                         }
