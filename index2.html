@@ -162,6 +162,50 @@
             line-height: 1.45;
         }
 
+        .report {
+            margin-top: 14px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            background: #fff;
+        }
+
+        .report-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .report-title {
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+        }
+
+        .report-sub {
+            margin-top: 6px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .report-preview {
+            margin-top: 10px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: #fbfcff;
+            padding: 10px;
+            min-height: 56px;
+            max-height: 260px;
+            overflow: auto;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+            font-size: 12px;
+            line-height: 1.45;
+            white-space: pre;
+            color: #334155;
+        }
+
         @media (max-width: 760px) {
             .container {
                 padding: 16px 14px;
@@ -212,6 +256,15 @@
             매칭 키: `학년 + 선택반명 + 교과명` (교과명은 공백/괄호 제거 후 비교).<br>
             동일 키가 여러 번 나오면 수업시간은 합쳐지고, 학급/교사는 중복 제거 후 쉼표로 합쳐집니다.
         </div>
+
+        <section class="report">
+            <div class="report-head">
+                <div class="report-title">미매칭 리포트</div>
+                <button id="download-unmatched-btn" disabled>미매칭 리포트 다운로드</button>
+            </div>
+            <div id="report-sub" class="report-sub">최근 실행 결과가 없습니다.</div>
+            <div id="report-preview" class="report-preview">실행 후 미매칭 상세가 여기에 표시됩니다.</div>
+        </section>
     </main>
 
     <script>
@@ -231,35 +284,37 @@
         const templateStatus = document.getElementById('template-status');
         const masterStatus = document.getElementById('master-status');
         const resultBox = document.getElementById('result');
+        const reportSub = document.getElementById('report-sub');
+        const reportPreview = document.getElementById('report-preview');
+        const downloadUnmatchedBtn = document.getElementById('download-unmatched-btn');
 
         const DAYS = ['월', '화', '수', '목', '금'];
         const DAY_ORDER = { 월: 1, 화: 2, 수: 3, 목: 4, 금: 5 };
+        const UNMATCHED_PREVIEW_LIMIT = 20;
+
+        let lastUnmatchedRows = [];
 
         function normalizeGrade(value) {
-            const match = String(value || '').match(/\\d+/);
+            const match = String(value || '').match(/\d+/);
             return match ? match[0] : '';
         }
 
         function normalizeGroup(value) {
-            return String(value || '').replace(/\\s+/g, '').replace(/반$/, '').toUpperCase();
+            return String(value || '').replace(/\s+/g, '').replace(/반$/, '').toUpperCase();
         }
 
         function normalizeSubject(value) {
             return String(value || '')
-                .replace(/\\([^)]*\\)/g, '')
-                .replace(/[\\s·ㆍ]/g, '')
+                .replace(/\([^)]*\)/g, '')
+                .replace(/[\s·ㆍ]/g, '')
                 .replace(/^_+|_+$/g, '')
                 .toLowerCase();
         }
 
         function normalizeClassLabel(value) {
-            const match = String(value || '').trim().match(/^(\\d+)\\s*-\\s*(\\d+)$/);
+            const match = String(value || '').trim().match(/^(\d+)\s*-\s*(\d+)$/);
             if (!match) return null;
             return `${match[1]}-${match[2]}`;
-        }
-
-        function makeKey(grade, group, subject) {
-            return `${normalizeGrade(grade)}|${normalizeGroup(group)}|${normalizeSubject(subject)}`;
         }
 
         function decodeRange(ws) {
@@ -291,7 +346,7 @@
                 }
             }
             if (!cell || cell.v === undefined || cell.v === null) return '';
-            return String(cell.v).replace(/\\u00A0/g, ' ').trim();
+            return String(cell.v).replace(/\u00A0/g, ' ').trim();
         }
 
         function setCellValue(ws, row, col, value) {
@@ -313,30 +368,131 @@
             resultBox.textContent = message;
         }
 
+        function createOutputFileName(sourceName) {
+            const clean = String(sourceName || '선택과목정보_템플릿.xlsx');
+            const withoutExt = clean.replace(/\.[^.]+$/, '');
+            return `${withoutExt}_자동채움.xlsx`;
+        }
+
+        function createUnmatchedReportFileName(sourceName) {
+            const clean = String(sourceName || '선택과목정보_템플릿.xlsx');
+            const withoutExt = clean.replace(/\.[^.]+$/, '');
+            return `${withoutExt}_미매칭리포트.xlsx`;
+        }
+
+        function clearUnmatchedReportView() {
+            lastUnmatchedRows = [];
+            reportSub.textContent = '최근 실행 결과가 없습니다.';
+            reportPreview.textContent = '실행 후 미매칭 상세가 여기에 표시됩니다.';
+            downloadUnmatchedBtn.disabled = true;
+        }
+
+        function updateUnmatchedReportView(rows, sourceName) {
+            lastUnmatchedRows = rows;
+            if (!rows || rows.length === 0) {
+                reportSub.textContent = '미매칭이 없습니다.';
+                reportPreview.textContent = '모든 행이 정상 매칭되었습니다.';
+                downloadUnmatchedBtn.disabled = true;
+                return;
+            }
+
+            const header = [
+                '행번호',
+                '학년(원문->정규화)',
+                '선택반명(원문->정규화)',
+                '교과명(원문->정규화)',
+                '사유'
+            ].join(' | ');
+
+            const lines = rows.slice(0, UNMATCHED_PREVIEW_LIMIT).map(item => {
+                return [
+                    item.rowNumber,
+                    `${item.gradeRaw} -> ${item.gradeNormalized}`,
+                    `${item.groupRaw} -> ${item.groupNormalized}`,
+                    `${item.subjectRaw} -> ${item.subjectNormalized}`,
+                    item.reason
+                ].join(' | ');
+            });
+
+            const suffix = rows.length > UNMATCHED_PREVIEW_LIMIT
+                ? `\n... 외 ${rows.length - UNMATCHED_PREVIEW_LIMIT}건 (전체 ${rows.length}건)\n다운로드 파일: ${createUnmatchedReportFileName(sourceName)}`
+                : `\n\n전체 ${rows.length}건\n다운로드 파일: ${createUnmatchedReportFileName(sourceName)}`;
+
+            reportSub.textContent = `미매칭 ${rows.length}건. 미리보기는 최대 ${UNMATCHED_PREVIEW_LIMIT}건까지 표시합니다.`;
+            reportPreview.textContent = `${header}\n${lines.join('\n')}${suffix}`;
+            downloadUnmatchedBtn.disabled = false;
+        }
+
+        function downloadUnmatchedReport(rows, sourceName) {
+            const header = [
+                '행번호',
+                '학년(원문)',
+                '선택반명(원문)',
+                '교과명(원문)',
+                '학년(정규화)',
+                '선택반명(정규화)',
+                '교과명(정규화)',
+                '매칭키',
+                '미매칭사유',
+                '동일 학년/선택반 교과 후보'
+            ];
+
+            const body = rows.map(item => ([
+                item.rowNumber,
+                item.gradeRaw,
+                item.groupRaw,
+                item.subjectRaw,
+                item.gradeNormalized,
+                item.groupNormalized,
+                item.subjectNormalized,
+                item.key,
+                item.reason,
+                item.candidateSubjects
+            ]));
+
+            const ws = XLSX.utils.aoa_to_sheet([header, ...body]);
+            ws['!cols'] = [
+                { wch: 8 },
+                { wch: 12 },
+                { wch: 16 },
+                { wch: 28 },
+                { wch: 12 },
+                { wch: 16 },
+                { wch: 24 },
+                { wch: 28 },
+                { wch: 28 },
+                { wch: 36 }
+            ];
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, '미매칭리포트');
+            XLSX.writeFile(wb, createUnmatchedReportFileName(sourceName));
+        }
+
         function parseElectiveCell(cellText) {
-            const normalized = String(cellText || '').replace(/\\r/g, '\\n').trim();
+            const normalized = String(cellText || '').replace(/\r/g, '\n').trim();
             if (!normalized) return null;
 
-            const lines = normalized.split('\\n').map(line => line.trim()).filter(Boolean);
+            const lines = normalized.split('\n').map(line => line.trim()).filter(Boolean);
             if (lines.length === 0) return null;
 
-            let subjectLine = lines[0].replace(/^\\((.*)\\)$/,'$1').trim();
+            let subjectLine = lines[0].replace(/^\((.*)\)$/,'$1').trim();
             let teacherLine = lines.length > 1 ? lines.slice(1).join(' ').trim() : '';
 
-            const subjectMatch = subjectLine.match(/^([A-Za-z0-9가-힣]+)\\s*[_-]\\s*(.+)$/);
+            const subjectMatch = subjectLine.match(/^([A-Za-z0-9가-힣]+)\s*[_-]\s*(.+)$/);
             if (!subjectMatch) return null;
 
             const group = subjectMatch[1].trim();
             const subject = subjectMatch[2].trim();
 
             if (!teacherLine) {
-                const teacherInLine = subject.match(/(.+?)\\s+([가-힣]{2,4})(?:\\(\\d+\\))?$/);
+                const teacherInLine = subject.match(/(.+?)\s+([가-힣]{2,4})(?:\(\d+\))?$/);
                 if (teacherInLine) {
                     teacherLine = teacherInLine[2];
                 }
             }
 
-            teacherLine = String(teacherLine || '').replace(/\\(\\d+\\)/g, '').trim();
+            teacherLine = String(teacherLine || '').replace(/\(\d+\)/g, '').trim();
 
             return { group, subject, teacher: teacherLine };
         }
@@ -354,7 +510,7 @@
                 }
 
                 const periodRaw = getCellText(ws, mergeMap, 2, col);
-                const periodMatch = periodRaw.match(/\\d+/);
+                const periodMatch = periodRaw.match(/\d+/);
                 if (currentDay && periodMatch) {
                     slotByCol[col] = {
                         day: currentDay,
@@ -364,6 +520,9 @@
             }
 
             const index = new Map();
+            const grades = new Set();
+            const gradeGroups = new Set();
+            const subjectsByGradeGroup = new Map();
 
             for (let row = 3; row <= range.e.r; row++) {
                 const classLabel = normalizeClassLabel(getCellText(ws, mergeMap, row, 0));
@@ -381,7 +540,11 @@
                     const parsed = parseElectiveCell(rawCell);
                     if (!parsed) return;
 
-                    const key = makeKey(grade, parsed.group, parsed.subject);
+                    const normalizedGroup = normalizeGroup(parsed.group);
+                    const normalizedSubject = normalizeSubject(parsed.subject);
+                    if (!normalizedGroup || !normalizedSubject) return;
+
+                    const key = `${grade}|${normalizedGroup}|${normalizedSubject}`;
                     if (!index.has(key)) {
                         index.set(key, {
                             times: new Set(),
@@ -396,10 +559,25 @@
                     if (parsed.teacher) {
                         record.teachers.add(parsed.teacher);
                     }
+
+                    grades.add(grade);
+                    const ggKey = `${grade}|${normalizedGroup}`;
+                    gradeGroups.add(ggKey);
+                    if (!subjectsByGradeGroup.has(ggKey)) {
+                        subjectsByGradeGroup.set(ggKey, new Set());
+                    }
+                    subjectsByGradeGroup.get(ggKey).add(parsed.subject);
                 });
             }
 
-            return index;
+            return {
+                index,
+                meta: {
+                    grades,
+                    gradeGroups,
+                    subjectsByGradeGroup
+                }
+            };
         }
 
         function sortTimes(timeSet) {
@@ -418,7 +596,7 @@
         }
 
         function detectTemplateColumns(aoa) {
-            const normalizeHeader = (value) => String(value || '').replace(/\\s+/g, '');
+            const normalizeHeader = (value) => String(value || '').replace(/\s+/g, '');
             let best = null;
 
             for (let r = 0; r < Math.min(20, aoa.length); r++) {
@@ -447,7 +625,9 @@
             return best;
         }
 
-        function fillTemplateWithIndex(ws, index) {
+        function fillTemplateWithIndex(ws, builtIndex) {
+            const index = builtIndex.index;
+            const meta = builtIndex.meta;
             const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
             const structure = detectTemplateColumns(aoa);
             if (!structure) {
@@ -457,6 +637,7 @@
             const { headerRow, columns } = structure;
             let totalRows = 0;
             let matchedRows = 0;
+            const unmatchedRows = [];
 
             for (let r = headerRow + 1; r < aoa.length; r++) {
                 const row = aoa[r] || [];
@@ -467,9 +648,42 @@
                 if (!grade || !group || !subject) continue;
                 totalRows += 1;
 
-                const key = makeKey(grade, group, subject);
+                const gradeNormalized = normalizeGrade(grade);
+                const groupNormalized = normalizeGroup(group);
+                const subjectNormalized = normalizeSubject(subject);
+                const key = `${gradeNormalized}|${groupNormalized}|${subjectNormalized}`;
                 const info = index.get(key);
-                if (!info) continue;
+                if (!info) {
+                    const ggKey = `${gradeNormalized}|${groupNormalized}`;
+                    let reason = '매칭 키 없음';
+                    let candidateSubjects = '';
+
+                    if (!gradeNormalized || !groupNormalized || !subjectNormalized) {
+                        reason = '정규화 결과가 비어 매칭 불가';
+                    } else if (!meta.grades.has(gradeNormalized)) {
+                        reason = '전체시간표에 해당 학년 데이터 없음';
+                    } else if (!meta.gradeGroups.has(ggKey)) {
+                        reason = '전체시간표에 해당 학년/선택반 데이터 없음';
+                    } else {
+                        reason = '동일 학년/선택반에서 교과명 불일치';
+                        const candidates = meta.subjectsByGradeGroup.get(ggKey) || new Set();
+                        candidateSubjects = sortNatural(candidates).join(', ');
+                    }
+
+                    unmatchedRows.push({
+                        rowNumber: r + 1,
+                        gradeRaw: String(grade),
+                        groupRaw: String(group),
+                        subjectRaw: String(subject),
+                        gradeNormalized,
+                        groupNormalized,
+                        subjectNormalized,
+                        key,
+                        reason,
+                        candidateSubjects
+                    });
+                    continue;
+                }
 
                 const timeText = sortTimes(info.times).join(',');
                 const classroomText = sortNatural(info.classrooms).join(', ');
@@ -482,13 +696,7 @@
                 matchedRows += 1;
             }
 
-            return { totalRows, matchedRows };
-        }
-
-        function createOutputFileName(sourceName) {
-            const clean = String(sourceName || '선택과목정보_템플릿.xlsx');
-            const withoutExt = clean.replace(/\\.[^.]+$/, '');
-            return `${withoutExt}_자동채움.xlsx`;
+            return { totalRows, matchedRows, unmatchedRows };
         }
 
         templateInput.addEventListener('change', async (event) => {
@@ -507,12 +715,14 @@
 
                 templateStatus.textContent = `업로드 완료: ${file.name}`;
                 setResult('템플릿 파일을 확인했습니다. 전체시간표 파일도 업로드해주세요.');
+                clearUnmatchedReportView();
                 updateRunState();
             } catch (error) {
                 state.templateWorkbook = null;
                 state.templateWorksheet = null;
                 templateStatus.textContent = '템플릿 파일 읽기 실패';
                 setResult(`템플릿 파일 오류: ${error.message}`, 'error');
+                clearUnmatchedReportView();
                 updateRunState();
             }
         });
@@ -531,11 +741,13 @@
 
                 masterStatus.textContent = `업로드 완료: ${file.name}`;
                 setResult('전체시간표 파일을 확인했습니다. 템플릿 파일도 업로드해주세요.');
+                clearUnmatchedReportView();
                 updateRunState();
             } catch (error) {
                 state.masterWorksheet = null;
                 masterStatus.textContent = '전체시간표 파일 읽기 실패';
                 setResult(`전체시간표 파일 오류: ${error.message}`, 'error');
+                clearUnmatchedReportView();
                 updateRunState();
             }
         });
@@ -547,21 +759,32 @@
             }
 
             try {
-                const index = buildElectiveIndexFromMaster(state.masterWorksheet);
-                const summary = fillTemplateWithIndex(state.templateWorksheet, index);
+                const builtIndex = buildElectiveIndexFromMaster(state.masterWorksheet);
+                const summary = fillTemplateWithIndex(state.templateWorksheet, builtIndex);
 
                 XLSX.writeFile(state.templateWorkbook, createOutputFileName(state.templateFileName));
 
-                const unmatched = summary.totalRows - summary.matchedRows;
+                const unmatched = summary.unmatchedRows.length;
+                updateUnmatchedReportView(summary.unmatchedRows, state.templateFileName);
                 setResult(
                     `완료: ${summary.matchedRows}/${summary.totalRows}개 행 매칭\n` +
                     `미매칭: ${unmatched}개\n` +
-                    `다운로드: ${createOutputFileName(state.templateFileName)}`,
+                    `다운로드: ${createOutputFileName(state.templateFileName)}` +
+                    (unmatched > 0 ? `\n상세는 [미매칭 리포트 다운로드]에서 확인` : ''),
                     'success'
                 );
             } catch (error) {
                 setResult(`자동 채움 실패: ${error.message}`, 'error');
             }
+        });
+
+        downloadUnmatchedBtn.addEventListener('click', () => {
+            if (!lastUnmatchedRows || lastUnmatchedRows.length === 0) {
+                setResult('미매칭 데이터가 없습니다.', 'error');
+                return;
+            }
+            downloadUnmatchedReport(lastUnmatchedRows, state.templateFileName);
+            setResult(`미매칭 리포트 다운로드: ${createUnmatchedReportFileName(state.templateFileName)}`, 'success');
         });
 
         resetBtn.addEventListener('click', () => {
@@ -577,6 +800,7 @@
             templateStatus.textContent = '파일 대기 중';
             masterStatus.textContent = '파일 대기 중';
             setResult('파일 2개를 모두 업로드하면 실행할 수 있습니다.');
+            clearUnmatchedReportView();
             updateRunState();
         });
     </script>
