@@ -2,6 +2,15 @@
 
 // 테마별 컬러 팔레트 정의
 const themes = {
+    'serenity': {
+        primary: '#92A8D1',
+        primaryLight: '#B8CAE6',
+        accent: '#D1E2F7',
+        background: '#F7FAFC',
+        cardBg: '#FFFFFF',
+        headerBg: '#92A8D1',
+        headerText: '#FFFFFF'
+    },
     'classic-blue': {
         primary: '#0F4C81',
         primaryLight: '#2E86AB',
@@ -11,6 +20,15 @@ const themes = {
         headerBg: '#0F4C81',
         headerText: '#FFFFFF'
     },
+    'midnight': {
+        primary: '#2C3E50',
+        primaryLight: '#4A6274',
+        accent: '#7F8C9B',
+        background: '#F5F6F8',
+        cardBg: '#FFFFFF',
+        headerBg: '#2C3E50',
+        headerText: '#FFFFFF'
+    },
     'living-coral': {
         primary: '#FF6F61',
         primaryLight: '#FF8A80',
@@ -18,6 +36,15 @@ const themes = {
         background: '#FFF8F7',
         cardBg: '#FFFFFF',
         headerBg: '#FF6F61',
+        headerText: '#FFFFFF'
+    },
+    'rose': {
+        primary: '#D4708F',
+        primaryLight: '#E8A0B4',
+        accent: '#F2C4D0',
+        background: '#FDF7F9',
+        cardBg: '#FFFFFF',
+        headerBg: '#D4708F',
         headerText: '#FFFFFF'
     },
     'ultra-violet': {
@@ -38,6 +65,24 @@ const themes = {
         headerBg: '#88B04B',
         headerText: '#FFFFFF'
     },
+    'ocean': {
+        primary: '#1A8A7D',
+        primaryLight: '#3BB5A6',
+        accent: '#8CD4CA',
+        background: '#F4FAF9',
+        cardBg: '#FFFFFF',
+        headerBg: '#1A8A7D',
+        headerText: '#FFFFFF'
+    },
+    'amber': {
+        primary: '#D48C2E',
+        primaryLight: '#E5AD5E',
+        accent: '#F0D0A0',
+        background: '#FDFAF4',
+        cardBg: '#FFFFFF',
+        headerBg: '#D48C2E',
+        headerText: '#FFFFFF'
+    },
     'marsala': {
         primary: '#955251',
         primaryLight: '#B87071',
@@ -47,13 +92,22 @@ const themes = {
         headerBg: '#955251',
         headerText: '#FFFFFF'
     },
-    'serenity': {
-        primary: '#92A8D1',
-        primaryLight: '#B8CAE6',
-        accent: '#D1E2F7',
-        background: '#F7FAFC',
+    'slate': {
+        primary: '#5A7D8B',
+        primaryLight: '#7FA3B0',
+        accent: '#B0CED6',
+        background: '#F6F9FA',
         cardBg: '#FFFFFF',
-        headerBg: '#92A8D1',
+        headerBg: '#5A7D8B',
+        headerText: '#FFFFFF'
+    },
+    'graphite': {
+        primary: '#4A4A4A',
+        primaryLight: '#717171',
+        accent: '#A0A0A0',
+        background: '#F5F5F5',
+        cardBg: '#FFFFFF',
+        headerBg: '#4A4A4A',
         headerText: '#FFFFFF'
     }
 };
@@ -575,6 +629,169 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             border-color: var(--primary-light);
         }
 
+        /* 교사 사이드바 레이아웃 */
+        .teacher-layout {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        .teacher-sidebar {
+            width: 220px;
+            min-width: 220px;
+            background: var(--surface-soft);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 200px);
+            position: sticky;
+            top: 20px;
+            overflow: hidden;
+        }
+        .teacher-sidebar-header {
+            padding: 14px 14px 0;
+            flex-shrink: 0;
+        }
+        .teacher-sidebar-search {
+            position: relative;
+            margin-bottom: 12px;
+        }
+        .teacher-sidebar-search input {
+            width: 100%;
+            padding: 10px 12px 10px 36px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            font-size: 13px;
+            background: var(--card-background);
+            color: var(--text-color);
+            outline: none;
+            transition: border-color 0.2s ease;
+            box-sizing: border-box;
+        }
+        .teacher-sidebar-search input:focus {
+            border-color: var(--primary-color);
+        }
+        .teacher-sidebar-search input::placeholder {
+            color: var(--subtle-text);
+        }
+        .teacher-sidebar-search .sidebar-search-icon {
+            position: absolute;
+            left: 11px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--subtle-text);
+            pointer-events: none;
+            display: flex;
+        }
+        .teacher-sidebar-list {
+            overflow-y: auto;
+            padding: 0 8px 8px;
+            flex: 1;
+        }
+        .teacher-sidebar-list::-webkit-scrollbar {
+            width: 4px;
+        }
+        .teacher-sidebar-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .teacher-sidebar-list::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+        .teacher-sidebar-list::-webkit-scrollbar-thumb:hover {
+            background: var(--subtle-text);
+        }
+        .sidebar-section-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--subtle-text);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding: 8px 8px 6px;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .sidebar-fav-clear {
+            background: none;
+            border: none;
+            color: var(--subtle-text);
+            cursor: pointer;
+            padding: 2px 4px;
+            font-size: 10px;
+            font-weight: 500;
+            border-radius: 6px;
+            transition: color 0.15s ease, background-color 0.15s ease;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+        .sidebar-fav-clear:hover {
+            color: var(--text-color);
+            background: var(--row-hover);
+        }
+        .sidebar-divider {
+            height: 1px;
+            background: var(--border-color);
+            margin: 4px 8px 8px;
+        }
+        .teacher-sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: 9px 12px;
+            border: none;
+            border-radius: 9px;
+            background: transparent;
+            color: var(--text-color);
+            font-size: 13.5px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.15s ease, color 0.15s ease;
+            text-align: left;
+            line-height: 1.3;
+            box-sizing: border-box;
+        }
+        .teacher-sidebar-item:hover {
+            background: var(--row-hover);
+        }
+        .teacher-sidebar-item.active {
+            background: var(--primary-color);
+            color: #fff;
+            font-weight: 600;
+        }
+        .teacher-sidebar-item .sidebar-fav-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            flex-shrink: 0;
+        }
+        .teacher-sidebar-item.active .sidebar-fav-dot {
+            background: rgba(255,255,255,0.6);
+        }
+        .teacher-sidebar-count {
+            font-size: 11px;
+            color: var(--subtle-text);
+            text-align: center;
+            padding: 6px 8px 10px;
+            font-weight: 500;
+            flex-shrink: 0;
+        }
+        .teacher-main-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .sidebar-no-result {
+            text-align: center;
+            padding: 20px 12px;
+            color: var(--subtle-text);
+            font-size: 13px;
+        }
+
         .empty-state {
             text-align: center;
             padding: 78px 20px;
@@ -706,14 +923,14 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
         }
         .student-list-table {
             width: 100%;
-            min-width: 520px;
+            min-width: 360px;
             border-collapse: collapse;
             table-layout: fixed;
             font-size: 13px;
         }
         .student-list-table th,
         .student-list-table td {
-            padding: 9px 8px;
+            padding: 5px 8px;
             border-bottom: 1px solid var(--line-soft);
             border-right: 0;
         }
@@ -819,6 +1036,55 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             thead th:first-child {
                 background: var(--header-bg);
             }
+            .teacher-layout {
+                flex-direction: column;
+            }
+            .teacher-sidebar {
+                width: 100%;
+                min-width: 0;
+                max-height: none;
+                position: static;
+                flex-direction: row;
+                flex-wrap: wrap;
+                border-radius: 12px;
+            }
+            .teacher-sidebar-header {
+                width: 100%;
+                padding: 12px 12px 0;
+            }
+            .teacher-sidebar-list {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+                padding: 8px 12px 12px;
+                overflow-y: visible;
+                max-height: 160px;
+                overflow-y: auto;
+            }
+            .sidebar-section-label {
+                width: 100%;
+                padding: 4px 4px 2px;
+            }
+            .sidebar-divider {
+                width: 100%;
+                margin: 2px 0 4px;
+            }
+            .teacher-sidebar-item {
+                padding: 7px 12px;
+                border-radius: 999px;
+                font-size: 13px;
+                border: 1px solid var(--border-color);
+                background: var(--card-background);
+                width: auto;
+            }
+            .teacher-sidebar-item.active {
+                border-color: var(--primary-color);
+            }
+            .teacher-sidebar-count {
+                width: 100%;
+                padding: 0 4px 6px;
+                text-align: left;
+            }
             .empty-state {
                 padding: 56px 20px;
             }
@@ -845,8 +1111,12 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             .schedule-actions,
             .title-icon,
             .tab-navigation,
-            .student-list-modal {
+            .student-list-modal,
+            .teacher-sidebar {
                 display: none !important;
+            }
+            .teacher-layout {
+                display: block !important;
             }
             body {
                 background: #fff !important;
@@ -1208,19 +1478,32 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
             if (bodyElement) {
                 let tableHtml = '<table class="student-list-table">' +
                     '<thead>' +
-                        '<tr><th>순번</th><th>학번</th><th>반</th><th>번호</th><th>이름</th></tr>' +
+                        '<tr><th>학년</th><th>반</th><th>번호</th><th>학번</th><th>이름</th></tr>' +
                     '</thead>' +
                     '<tbody>';
 
                 if (rows.length === 0) {
                     tableHtml += '<tr><td colspan="5" class="empty-cell-label">학생 정보가 없습니다.</td></tr>';
                 } else {
-                    rows.forEach((row, index) => {
+                    var sortedRows = rows.map(function(row) {
+                        var parts = String(row.homeroom || '').split('-');
+                        return {
+                            grade: parts[0] || '',
+                            classNum: parts[1] || '',
+                            number: row.number || '',
+                            studentId: row.studentId || '',
+                            name: row.name || ''
+                        };
+                    });
+                    sortedRows.sort(function(a, b) {
+                        return parseInt(a.studentId, 10) - parseInt(b.studentId, 10);
+                    });
+                    sortedRows.forEach(function(row) {
                         tableHtml += '<tr>' +
-                            '<td>' + (index + 1) + '</td>' +
-                            '<td>' + escapeHtml(row.studentId || '-') + '</td>' +
-                            '<td>' + escapeHtml(row.homeroom || '-') + '</td>' +
+                            '<td>' + escapeHtml(row.grade || '-') + '</td>' +
+                            '<td>' + escapeHtml(row.classNum || '-') + '</td>' +
                             '<td>' + escapeHtml(row.number || '-') + '</td>' +
+                            '<td>' + escapeHtml(row.studentId || '-') + '</td>' +
                             '<td>' + escapeHtml(row.name || '-') + '</td>' +
                         '</tr>';
                     });
@@ -1254,19 +1537,25 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
             if (!payload) return;
 
             const rows = resolveStudentRows(payload.students);
-            const exportRows = rows.map((row, index) => ({
-                순번: index + 1,
-                학번: row.studentId || '',
-                반: row.homeroom || '',
-                번호: row.number || '',
-                이름: row.name || ''
-            }));
+            const exportRows = rows.map(function(row) {
+                var parts = String(row.homeroom || '').split('-');
+                return {
+                    학년: parts[0] || '',
+                    반: parts[1] || '',
+                    번호: row.number || '',
+                    학번: row.studentId || '',
+                    이름: row.name || ''
+                };
+            });
+            exportRows.sort(function(a, b) {
+                return parseInt(a['학번'], 10) - parseInt(b['학번'], 10);
+            });
 
             const fileBaseName = sanitizeFileName(payload.fileName || payload.title || '학생목록');
 
             if (window.XLSX && XLSX.utils && XLSX.writeFile) {
                 const worksheet = XLSX.utils.json_to_sheet(
-                    exportRows.length > 0 ? exportRows : [{ 순번: '', 학번: '', 반: '', 번호: '', 이름: '' }]
+                    exportRows.length > 0 ? exportRows : [{ 학년: '', 반: '', 번호: '', 학번: '', 이름: '' }]
                 );
                 const workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, '학생목록');
@@ -1711,7 +2000,13 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
         function updateSearchSection() {
             const searchSection = document.getElementById('search-section');
             closeStudentListModal();
-            
+            removeTeacherSidebar();
+
+            // 교사 탭이 아닌 경우 search-section 다시 표시
+            if (currentMode !== 'teacher') {
+                searchSection.style.display = '';
+            }
+
             if (currentMode === 'student') {
                 // 학생별 탭: 검색창 + 즐겨찾기
                 searchSection.innerHTML = '' +
@@ -1752,31 +2047,15 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                         '<div class="favorite-chips">' + classroomButtons + '</div>' +
                     '</div>';
             } else if (currentMode === 'teacher') {
-                // 선생님별 탭: 검색창 + 즐겨찾기 (학생별 탭과 동일한 구조)
-                searchSection.innerHTML = '' +
-                    '<div class="search-container">' +
-                        '<div class="search-icon">' +
-                            '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
-                                '<circle cx="11" cy="11" r="8"></circle>' +
-                                '<line x1="21" y1="21" x2="16.65" y2="16.65"></line>' +
-                            '</svg>' +
-                        '</div>' +
-                        '<input type="text" id="search-input" placeholder="선생님 이름을 입력하세요...">' +
-                        '<div class="autocomplete-dropdown" id="autocomplete-dropdown"></div>' +
-                    '</div>' +
-                    '<div class="favorites-section">' +
-                        '<div class="favorites-title">자주 찾는 선생님</div>' +
-                        '<div class="favorite-chips" id="favorite-chips"></div>' +
-                    '</div>';
+                // 선생님별 탭: 사이드바 레이아웃 (search-section은 숨기고, 사이드바로 대체)
+                searchSection.style.display = 'none';
+                buildTeacherSidebar();
             }
             
             // 검색창이 있는 탭에서 이벤트 리스너 재설정
             if (currentMode === 'student') {
                 setupEventListeners();
                 updateFavoriteChips();
-            } else if (currentMode === 'teacher') {
-                setupTeacherEventListeners();
-                updateTeacherFavoriteChips();
             }
         }
 
@@ -2199,7 +2478,9 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
             }
             
             html += '</tbody></table></div>';
-            scheduleContainer.innerHTML = html;
+            // 사이드바 모드면 메인 콘텐츠 영역에 렌더링
+            const targetContainer = document.getElementById('teacher-main-content') || scheduleContainer;
+            targetContainer.innerHTML = html;
         }
 
         // 과목명과 교사명 분리 함수
@@ -3594,6 +3875,157 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
             }
         }
 
+        // 교사 사이드바 구축
+        let activeTeacherId = '';
+
+        function buildTeacherSidebar() {
+            removeTeacherSidebar();
+
+            const teacherList = Object.keys(teacherData).sort();
+            const container = document.getElementById('schedule-container');
+
+            // 사이드바 + 메인 콘텐츠 레이아웃 생성
+            const layout = document.createElement('div');
+            layout.className = 'teacher-layout';
+            layout.id = 'teacher-layout';
+
+            // 즐겨찾기와 전체 목록 분리
+            const favTeachers = teacherList.filter(t => teacherFavorites.includes(t));
+            const otherTeachers = teacherList.filter(t => !teacherFavorites.includes(t));
+
+            let listHtml = '';
+
+            if (favTeachers.length > 0) {
+                listHtml += '<div class="sidebar-section-label"><span>즐겨찾기</span><button class="sidebar-fav-clear" onclick="clearTeacherFavorites();" title="즐겨찾기 초기화"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>초기화</button></div>';
+                favTeachers.forEach(t => {
+                    listHtml += '<button class="teacher-sidebar-item" data-teacher="' + t + '">' +
+                        '<span class="sidebar-fav-dot"></span>' + t +
+                        '</button>';
+                });
+                listHtml += '<div class="sidebar-divider"></div>';
+            }
+
+            listHtml += '<div class="sidebar-section-label">전체 (' + teacherList.length + ')</div>';
+            otherTeachers.forEach(t => {
+                listHtml += '<button class="teacher-sidebar-item" data-teacher="' + t + '">' + t + '</button>';
+            });
+
+            layout.innerHTML = '' +
+                '<div class="teacher-sidebar" id="teacher-sidebar">' +
+                    '<div class="teacher-sidebar-header">' +
+                        '<div class="teacher-sidebar-search">' +
+                            '<span class="sidebar-search-icon">' +
+                                '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>' +
+                            '</span>' +
+                            '<input type="text" id="teacher-sidebar-filter" placeholder="이름 검색...">' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="teacher-sidebar-list" id="teacher-sidebar-list">' +
+                        listHtml +
+                    '</div>' +
+                '</div>' +
+                '<div class="teacher-main-content" id="teacher-main-content">' +
+                    '<div class="empty-state"><div class="empty-state-icon">' +
+                        '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>' +
+                    '</div><h3>선생님을 선택하세요</h3></div>' +
+                '</div>';
+
+            container.innerHTML = '';
+            container.appendChild(layout);
+
+            setupTeacherSidebarEvents();
+        }
+
+        function removeTeacherSidebar() {
+            const layout = document.getElementById('teacher-layout');
+            if (layout) layout.remove();
+            activeTeacherId = '';
+        }
+
+        function setupTeacherSidebarEvents() {
+            const filterInput = document.getElementById('teacher-sidebar-filter');
+            const listContainer = document.getElementById('teacher-sidebar-list');
+            if (!filterInput || !listContainer) return;
+
+            // 클릭 이벤트
+            listContainer.addEventListener('click', function(e) {
+                const item = e.target.closest('.teacher-sidebar-item');
+                if (!item) return;
+                const teacherName = item.dataset.teacher;
+                selectTeacherFromSidebar(teacherName);
+            });
+
+            // 필터 이벤트
+            filterInput.addEventListener('input', function() {
+                const query = this.value.trim().toLowerCase();
+                const items = listContainer.querySelectorAll('.teacher-sidebar-item');
+                const labels = listContainer.querySelectorAll('.sidebar-section-label');
+                const dividers = listContainer.querySelectorAll('.sidebar-divider');
+                let visibleCount = 0;
+
+                items.forEach(item => {
+                    const name = item.dataset.teacher.toLowerCase();
+                    const show = !query || name.includes(query);
+                    item.style.display = show ? '' : 'none';
+                    if (show) visibleCount++;
+                });
+
+                // 필터 중일 때 섹션 라벨/구분선 숨김
+                const isFiltering = query.length > 0;
+                labels.forEach(l => l.style.display = isFiltering ? 'none' : '');
+                dividers.forEach(d => d.style.display = isFiltering ? 'none' : '');
+
+                // 검색 결과 없음
+                let noResult = listContainer.querySelector('.sidebar-no-result');
+                if (visibleCount === 0) {
+                    if (!noResult) {
+                        noResult = document.createElement('div');
+                        noResult.className = 'sidebar-no-result';
+                        noResult.textContent = '검색 결과 없음';
+                        listContainer.appendChild(noResult);
+                    }
+                } else if (noResult) {
+                    noResult.remove();
+                }
+            });
+
+            // Enter 키로 첫 번째 결과 선택
+            filterInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const firstVisible = listContainer.querySelector('.teacher-sidebar-item:not([style*="display: none"])');
+                    if (firstVisible) {
+                        selectTeacherFromSidebar(firstVisible.dataset.teacher);
+                    }
+                }
+            });
+        }
+
+        function selectTeacherFromSidebar(teacherName) {
+            activeTeacherId = teacherName;
+
+            // 활성 상태 업데이트
+            const listContainer = document.getElementById('teacher-sidebar-list');
+            if (listContainer) {
+                listContainer.querySelectorAll('.teacher-sidebar-item').forEach(item => {
+                    item.classList.toggle('active', item.dataset.teacher === teacherName);
+                });
+            }
+
+            // 시간표 표시 (displayTeacherSchedule이 자동으로 teacher-main-content에 렌더링)
+            displayTeacherSchedule(teacherName);
+        }
+
+        function refreshTeacherSidebar() {
+            if (currentMode === 'teacher' && document.getElementById('teacher-sidebar')) {
+                const savedTeacher = activeTeacherId;
+                buildTeacherSidebar();
+                if (savedTeacher && teacherData[savedTeacher]) {
+                    selectTeacherFromSidebar(savedTeacher);
+                }
+            }
+        }
+
         function showEmptyState() {
             const svgIcons = {
                 student: '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
@@ -3605,6 +4037,11 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
             const labels = {student: '학생 이름을 검색하세요', class: '반을 선택하세요', classroom: '교실을 선택하세요', teacher: '선생님을 선택하세요'};
             const icon = svgIcons[currentMode] || defaultIcon;
             const label = labels[currentMode] || '선택하세요';
+
+            if (currentMode === 'teacher') {
+                // 교사 탭은 사이드바에서 처리
+                return;
+            }
             scheduleContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">' + icon + '</div><h3>' + label + '</h3></div>';
         }
 
@@ -3690,8 +4127,12 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
         }
         
         function selectTeacher(teacherName) {
-            clearTeacherSearch();
-            displayTeacherSchedule(teacherName);
+            if (document.getElementById('teacher-sidebar')) {
+                selectTeacherFromSidebar(teacherName);
+            } else {
+                clearTeacherSearch();
+                displayTeacherSchedule(teacherName);
+            }
         }
         
         function clearTeacherSearch() {
@@ -3703,23 +4144,31 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
         
         // 선생님 즐겨찾기 관리
         let teacherFavorites = JSON.parse(localStorage.getItem('favTeachers') || '[]');
+
+        function clearTeacherFavorites() {
+            teacherFavorites = [];
+            localStorage.setItem('favTeachers', JSON.stringify(teacherFavorites));
+            refreshTeacherSidebar();
+        }
         
         function toggleTeacherFavorite(teacherName) {
             const index = teacherFavorites.indexOf(teacherName);
             if (index > -1) {
-                // 이미 즐겨찾기에 있으면 제거
                 teacherFavorites.splice(index, 1);
             } else {
-                // 즐겨찾기에 없으면 추가 (맨 앞에)
                 teacherFavorites.unshift(teacherName);
                 if (teacherFavorites.length > 10) {
                     teacherFavorites = teacherFavorites.slice(0, 10);
                 }
             }
             localStorage.setItem('favTeachers', JSON.stringify(teacherFavorites));
-            updateTeacherFavoriteChips();
-            // 현재 표시된 선생님이면 화면 새로고침
-            displayTeacherSchedule(teacherName);
+            // 사이드바가 있으면 갱신, 없으면 기존 방식
+            if (document.getElementById('teacher-sidebar')) {
+                refreshTeacherSidebar();
+            } else {
+                updateTeacherFavoriteChips();
+                displayTeacherSchedule(teacherName);
+            }
         }
         
         function addToTeacherFavorites(teacherName) {
