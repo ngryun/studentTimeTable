@@ -347,12 +347,12 @@
 
         function updateAppVersionTimestamp() {
             if (!APP_VERSION) return;
-            const now = new Date();
-            const yyyy = now.getFullYear();
-            const mm = String(now.getMonth() + 1).padStart(2, '0');
-            const dd = String(now.getDate()).padStart(2, '0');
-            const hh = String(now.getHours()).padStart(2, '0');
-            const min = String(now.getMinutes()).padStart(2, '0');
+            const modified = new Date(document.lastModified);
+            const yyyy = modified.getFullYear();
+            const mm = String(modified.getMonth() + 1).padStart(2, '0');
+            const dd = String(modified.getDate()).padStart(2, '0');
+            const hh = String(modified.getHours()).padStart(2, '0');
+            const min = String(modified.getMinutes()).padStart(2, '0');
             APP_VERSION.textContent = `Last updated : ${yyyy}.${mm}.${dd} ${hh}:${min}`;
         }
 
@@ -1045,6 +1045,61 @@
                 });
             });
 
+            // 주간시간표에서 교사별 실제 수업 시간 매핑 구축
+            // key: "교사명_요일_교시" → true (해당 교사가 해당 시간에 수업하는지)
+            const teacherTimeMap = {};
+            if (timetableData.weeklyFormat === 'formatB') {
+                const wRaw = timetableData.weekly;
+                const dayHeaders = wRaw[2] || [];
+                const periodHeaders = wRaw[3] || [];
+                const colMap = {};
+                let curDay = '';
+                for (let ci = 1; ci < dayHeaders.length; ci++) {
+                    if (dayHeaders[ci] && ['월','화','수','목','금'].includes(dayHeaders[ci])) curDay = dayHeaders[ci];
+                    if (curDay && periodHeaders[ci]) colMap[ci] = { day: curDay, period: parseInt(periodHeaders[ci], 10) };
+                }
+                for (let ri = 4; ri < wRaw.length; ri++) {
+                    const sRow = wRaw[ri];
+                    if (!sRow || !sRow[0]) continue;
+                    const tName = String(sRow[0]).trim();
+                    if (!tName) continue;
+                    for (let ci = 1; ci < sRow.length; ci++) {
+                        if (sRow[ci] && colMap[ci]) {
+                            const tmKey = `${tName}_${colMap[ci].day}_${colMap[ci].period}`;
+                            teacherTimeMap[tmKey] = true;
+                        }
+                    }
+                }
+            } else { // formatA (컴시간 양식)
+                const wRaw = timetableData.weekly;
+                wRaw.forEach(wRow => {
+                    const tName = cleanTeacherName(wRow[0] ? String(wRow[0]).trim() : '');
+                    if (!tName) return;
+                    const sData = wRow.slice(1);
+                    let idx = 0;
+                    for (let di = 0; di < daysInOrder.length; di++) {
+                        const day = daysInOrder[di];
+                        const cnt = periodStructure.periodCounts[di] || 0;
+                        for (let pi = 0; pi < cnt; pi++) {
+                            if (sData[idx + pi]) {
+                                const tmKey = `${tName}_${day}_${pi + 1}`;
+                                teacherTimeMap[tmKey] = true;
+                            }
+                        }
+                        idx += cnt;
+                    }
+                });
+            }
+
+            // 주간시간표에 존재하는 교사 목록 (수동 추가 협력교사 판별용)
+            const teacherExistsInWeekly = {};
+            Object.keys(teacherTimeMap).forEach(k => {
+                // key 형식: "교사명_요일_교시" → 교사명 추출
+                const lastUnderscore = k.lastIndexOf('_');
+                const beforeLast = k.lastIndexOf('_', lastUnderscore - 1);
+                if (beforeLast > 0) teacherExistsInWeekly[k.substring(0, beforeLast)] = true;
+            });
+
             // 학생별 시간표 생성
             const students = [];
             timetableData.selection.forEach(file => {
@@ -1069,7 +1124,7 @@
                         student.schedule[d] = Array(student.maxPeriods).fill('');
                     });
 
-                    // 선택과목 배치 (같은 키에 여러 교사가 있을 수 있으므로 배열 순회)
+                    // 선택과목 배치 (같은 키에 여러 교사가 있을 때 시간대별 실제 교사 매칭)
                     for (let i = 5; i < selectionHeader.length; i++) {
                         const subjectNameFromHeader = selectionHeader[i];
                         const selectionGroup = row[i];
@@ -1077,34 +1132,59 @@
                             const key = `${grade}_${subjectNameFromHeader}_${selectionGroup}`;
                             const infoList = electiveInfoMap[key];
                             if (infoList) {
+                                // 모든 교사의 시간 목록을 먼저 수집
+                                const allTimeParts = new Set();
                                 infoList.forEach(info => {
                                     if (!info.times) return;
-                                    const details = [];
-                                    if (info.location) {
-                                        details.push(`<span class="location-chip">${info.location}</span>`);
+                                    info.times.split(',').filter(t => t.trim()).forEach(part => {
+                                        allTimeParts.add(part.trim());
+                                    });
+                                });
+
+                                allTimeParts.forEach(part => {
+                                    const dayMatch = part.match(/^[월화수목금]/);
+                                    const periodMatch = part.match(/\d+$/);
+                                    if (!dayMatch || !periodMatch) return;
+                                    const day = dayMatch[0];
+                                    const period = parseInt(periodMatch[0], 10);
+                                    const periodIndex = period - 1;
+                                    if (!student.schedule[day] || periodIndex < 0 || periodIndex >= student.maxPeriods) return;
+
+                                    // 해당 시간에 실제 수업하는 교사 모두 찾기
+                                    let matchedInfos = [];
+                                    if (infoList.length > 1) {
+                                        matchedInfos = infoList.filter(info => {
+                                            if (!info.teacher) return false;
+                                            // 주간시간표에 아예 없는 교사 → 수동 추가 협력교사 → 항상 포함
+                                            if (!teacherExistsInWeekly[info.teacher]) return true;
+                                            // 주간시간표에 있는 교사 → 해당 시간에 수업하는지 확인
+                                            return teacherTimeMap[`${info.teacher}_${day}_${period}`];
+                                        });
                                     }
-                                    if (info.teacher) {
-                                        details.push(`<span class="teacher-name">${info.teacher}</span>`);
+                                    // 매칭된 교사가 없으면 전체 목록 사용
+                                    if (matchedInfos.length === 0) matchedInfos = [infoList[0]];
+
+                                    const primaryInfo = matchedInfos[0];
+                                    const details = [];
+                                    if (primaryInfo.location) {
+                                        details.push(`<span class="location-chip">${primaryInfo.location}</span>`);
+                                    }
+                                    // 모든 매칭된 교사 표시
+                                    const teacherNames = matchedInfos
+                                        .map(info => info.teacher)
+                                        .filter(t => t);
+                                    if (teacherNames.length > 0) {
+                                        teacherNames.forEach(t => {
+                                            details.push(`<span class="teacher-name">${t}</span>`);
+                                        });
                                     }
 
                                     const content = `
-                                        <div class="subject-name">${info.subject}</div>
+                                        <div class="subject-name">${primaryInfo.subject}</div>
                                         <span class="elective-class-name" style="display:none;">${selectionGroup}</span>
-                                        ${details.length > 0 ? `<div class="details">${details.join('<br>')}</div>` : ''}
+                                        ${details.length > 0 ? `<div class="details">${details.join('')}</div>` : ''}
                                     `;
-
-                                    const timeParts = info.times.split(',').filter(t => t.trim());
-                                    timeParts.forEach(part => {
-                                        const dayMatch = part.match(/^[월화수목금]/);
-                                        const periodMatch = part.match(/\d+$/);
-                                        if (dayMatch && periodMatch) {
-                                            const day = dayMatch[0];
-                                            const periodIndex = parseInt(periodMatch[0], 10) - 1;
-                                            if (student.schedule[day] && periodIndex >= 0 && periodIndex < student.maxPeriods) {
-                                                student.schedule[day][periodIndex] = content;
-                                            }
-                                        }
-                                    });
+                                    student.schedule[day][periodIndex] = content;
                                 });
                             }
                         }

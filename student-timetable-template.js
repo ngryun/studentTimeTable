@@ -538,11 +538,18 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             font-weight: 700;
             font-size: 14px;
             color: var(--text-color);
-            margin-bottom: 4px;
+            margin-bottom: 0;
         }
         td .details {
-            margin-top: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            margin-top: 4px;
             line-height: 1.3;
+        }
+        td .details br {
+            display: none;
         }
         .details.details-with-list-slot {
             display: flex;
@@ -1006,6 +1013,10 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             .favorite-chips {
                 justify-content: flex-start;
             }
+            .table-container {
+                overflow-x: hidden;
+                border-radius: 10px;
+            }
             .schedule-header {
                 flex-direction: column;
                 align-items: stretch;
@@ -1023,18 +1034,44 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
                 min-width: 120px;
             }
             table {
-                font-size: 12px;
-                min-width: 680px;
+                font-size: 11px;
+                min-width: 0 !important;
+                width: 100% !important;
+                table-layout: fixed !important;
+            }
+            th, td {
+                padding: 4px 2px;
+                line-height: 1.3;
+                word-break: break-all;
             }
             th:first-child,
             td:first-child {
-                position: sticky;
-                left: 0;
-                z-index: 3;
-                background: var(--card-background);
+                width: 28px;
             }
-            thead th:first-child {
-                background: var(--header-bg);
+            td .subject-name {
+                font-size: 12px;
+            }
+            td .details {
+                gap: 2px;
+                margin-top: 2px;
+            }
+            .location-chip,
+            .teacher-name {
+                font-size: 9px;
+                padding: 1px 5px;
+            }
+            .elective-class-badge {
+                font-size: 9px;
+                min-width: 18px;
+                height: 18px;
+                padding: 0 5px;
+            }
+            .student-list-btn {
+                font-size: 9px;
+                padding: 2px 6px;
+            }
+            .elective-subject-line {
+                gap: 4px;
             }
             .teacher-layout {
                 flex-direction: column;
@@ -1109,10 +1146,15 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
         @media print {
             #search-section,
             .schedule-actions,
-            .title-icon,
             .tab-navigation,
             .student-list-modal,
             .teacher-sidebar {
+                display: none !important;
+            }
+            .title-icon {
+                display: none !important;
+            }
+            .pocket-logo {
                 display: none !important;
             }
             .teacher-layout {
@@ -1159,11 +1201,23 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             .student-print-page:first-child {
                 page-break-before: auto !important;
             }
+            /* 포켓사이즈: 로고 표시 */
+            body.pocket-size .title-icon {
+                display: none !important;
+            }
+            body.pocket-size .pocket-logo {
+                display: inline-block !important;
+                width: 10px !important;
+                height: 10px !important;
+                vertical-align: middle !important;
+                margin-right: 1mm !important;
+                margin-top: -1px !important;
+            }
             body.pocket-size .class-schedule-print-container {
                 display: grid !important;
                 grid-template-columns: repeat(2, 1fr) !important;
                 grid-template-rows: repeat(2, auto) !important;
-                grid-gap: 2mm !important;
+                grid-gap: 2.5mm !important;
                 width: 100% !important;
                 max-width: 200mm !important;
                 height: auto !important;
@@ -1186,8 +1240,9 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
                 max-height: 100mm !important;
                 display: block !important;
                 margin: 0 !important;
-                padding: 1mm !important;
-                border: 0.5px solid #666 !important;
+                padding: 1.5mm !important;
+                border: 0.5px solid #bbb !important;
+                border-radius: 2mm !important;
                 page-break-inside: avoid !important;
                 page-break-before: auto !important;
                 page-break-after: auto !important;
@@ -1197,50 +1252,87 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             body.pocket-size .student-print-page h3 {
                 font-size: 7pt !important;
                 margin: 0 0 1mm 0 !important;
-                padding: 0.5mm 0 !important;
-                text-align: center !important;
-                border-bottom: 0.5px solid #999 !important;
+                padding: 0.5mm 1mm !important;
+                text-align: left !important;
+                border-bottom: 0.4px solid #ccc !important;
+                font-weight: 700 !important;
+                letter-spacing: 0.3px !important;
             }
             body.pocket-size .student-print-page table {
                 font-size: 5pt !important;
                 width: 100% !important;
                 margin: 0 !important;
                 table-layout: fixed !important;
+                border-collapse: separate !important;
+                border-spacing: 0 !important;
             }
             body.pocket-size .student-print-page th,
             body.pocket-size .student-print-page td {
                 padding: 0.5mm !important;
                 height: 10mm !important;
                 font-size: 6pt !important;
-                line-height: 1.1 !important;
-                border: 0.3px solid #999 !important;
+                line-height: 1.15 !important;
+                border: 0.3px solid #ccc !important;
                 overflow: hidden !important;
+                vertical-align: middle !important;
             }
             body.pocket-size .student-print-page th {
-                height: 7mm !important;
-                font-size: 6pt !important;
-                font-weight: bold !important;
+                height: 6mm !important;
+                font-size: 5.5pt !important;
+                font-weight: 700 !important;
+                background: #f5f5f5 !important;
+                color: #333 !important;
+                letter-spacing: 0.2px !important;
+            }
+            body.pocket-size .student-print-page th:first-child {
+                width: 10% !important;
             }
             body.pocket-size .subject-name {
                 font-size: 5.5pt !important;
-                margin-bottom: 0.3mm !important;
-                font-weight: bold !important;
+                margin-bottom: 0.2mm !important;
+                font-weight: 600 !important;
                 line-height: 1 !important;
             }
             body.pocket-size .details {
-                margin-top: 0.3mm !important;
+                margin-top: 0.2mm !important;
                 line-height: 1 !important;
             }
             body.pocket-size .location-chip,
             body.pocket-size .teacher-name {
                 font-size: 4.5pt !important;
-                padding: 0 1px !important;
+                padding: 0.2mm 1mm !important;
                 display: inline !important;
-                background: rgba(0, 0, 0, 0.1) !important;
-                border-radius: 1px !important;
+                border-radius: 2mm !important;
+                border: none !important;
+            }
+            body.pocket-size .location-chip {
+                background: rgba(0, 0, 0, 0.06) !important;
+                color: #444 !important;
+            }
+            body.pocket-size .teacher-name {
+                background: transparent !important;
+                color: #666 !important;
             }
             body.pocket-size .location-chip::before {
                 content: '' !important;
+            }
+            body.pocket-size .elective-class-badge {
+                font-size: 4pt !important;
+                min-width: auto !important;
+                height: auto !important;
+                padding: 0.2mm 1mm !important;
+                border-radius: 1.5mm !important;
+            }
+            body.pocket-size .student-list-btn {
+                display: none !important;
+            }
+            body.pocket-size .student-list-slot,
+            body.pocket-size .student-list-placeholder {
+                display: none !important;
+            }
+            body.pocket-size .details.details-with-list-slot {
+                min-height: auto !important;
+                gap: 0.5mm !important;
             }
             body.pocket-size .schedule-header {
                 display: none !important;
@@ -2206,7 +2298,18 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
         }
 
         function displayClassSchedule(classId) {
-            const students = classData[classId] || [];
+            const students = (classData[classId] || []).slice().sort(function(a, b) {
+                var aId = 0, bId = 0;
+                if (a.homeroom && a.number) {
+                    var ap = a.homeroom.split('-');
+                    if (ap.length === 2) aId = parseInt(ap[0]) * 10000 + parseInt(ap[1]) * 100 + parseInt(a.number);
+                }
+                if (b.homeroom && b.number) {
+                    var bp = b.homeroom.split('-');
+                    if (bp.length === 2) bId = parseInt(bp[0]) * 10000 + parseInt(bp[1]) * 100 + parseInt(b.number);
+                }
+                return aId - bId;
+            });
             if (students.length === 0) { showEmptyState(); return; }
             clearStudentListStore();
             
@@ -2259,9 +2362,11 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                 }
                 
                 const displayName = studentId ? student.name + ' (' + studentId + ')' : student.name;
-                
+                const logoEl = document.querySelector('.title-icon');
+                const logoSrc = logoEl ? logoEl.src : '';
+
                 html += '<div class="student-print-page">' +
-                        '<h3>' + displayName + '</h3>' +
+                        '<h3>' + (logoSrc ? '<img src="' + logoSrc + '" class="title-icon pocket-logo" alt="">' : '') + displayName + '</h3>' +
                         '<div class="table-container">' +
                             '<table>' +
                                 '<thead>' +
@@ -3021,44 +3126,50 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                                 }
                             }
                             
-                            // 교사 정보 추출
-                            const teacherStart = content.indexOf('<span class="teacher-name">');
-                            const teacherEnd = content.indexOf('</span>', teacherStart);
-                            if (teacherStart !== -1 && teacherEnd !== -1) {
-                                teacher = content.substring(teacherStart + 27, teacherEnd);
+                            // 교사 정보 추출 (협력수업: 여러 교사가 있을 수 있음)
+                            const teachers = [];
+                            let searchPos = 0;
+                            while (true) {
+                                const tStart = content.indexOf('<span class="teacher-name">', searchPos);
+                                if (tStart === -1) break;
+                                const tEnd = content.indexOf('</span>', tStart);
+                                if (tEnd === -1) break;
+                                teachers.push(content.substring(tStart + 27, tEnd));
+                                searchPos = tEnd + 7;
                             }
-                            
-                            if (teacher && subject) {
-                                const normalizedTeacher = normalizeTeacherName(teacher);
+
+                            if (teachers.length > 0 && subject) {
                                 const periodKey = day + (i + 1);
-                                
-                                if (!teacherData[normalizedTeacher]) {
-                                    teacherData[normalizedTeacher] = {};
-                                }
-                                if (!teacherData[normalizedTeacher][periodKey]) {
-                                    teacherData[normalizedTeacher][periodKey] = [];
-                                }
-                                
-                                // 같은 과목과 교실의 수업 찾기 (반명도 비교)
-                                let existingClass = teacherData[normalizedTeacher][periodKey].find(
-                                    item => item.subject === subject && item.classroom === classroom && item.electiveClassName === electiveClassName
-                                );
-                                
-                                if (existingClass) {
-                                    // 기존 수업에 학생 추가
-                                    if (!existingClass.students.includes(student.name)) {
-                                        existingClass.students.push(student.name);
+
+                                teachers.forEach(teacherItem => {
+                                    const normalizedTeacher = normalizeTeacherName(teacherItem);
+
+                                    if (!teacherData[normalizedTeacher]) {
+                                        teacherData[normalizedTeacher] = {};
                                     }
-                                } else {
-                                    // 새 선택과목 수업 추가
-                                    teacherData[normalizedTeacher][periodKey].push({
-                                        subject: subject,
-                                        classroom: classroom,
-                                        electiveClassName: electiveClassName,
-                                        students: [student.name]
-                                    });
-                                    console.log('[TEACHER_ELECTIVE] Added elective class:', subject, 'for teacher', normalizedTeacher, 'in', classroom, 'class:', electiveClassName);
-                                }
+                                    if (!teacherData[normalizedTeacher][periodKey]) {
+                                        teacherData[normalizedTeacher][periodKey] = [];
+                                    }
+
+                                    // 같은 과목과 교실의 수업 찾기 (반명도 비교)
+                                    let existingClass = teacherData[normalizedTeacher][periodKey].find(
+                                        item => item.subject === subject && item.classroom === classroom && item.electiveClassName === electiveClassName
+                                    );
+
+                                    if (existingClass) {
+                                        if (!existingClass.students.includes(student.name)) {
+                                            existingClass.students.push(student.name);
+                                        }
+                                    } else {
+                                        teacherData[normalizedTeacher][periodKey].push({
+                                            subject: subject,
+                                            classroom: classroom,
+                                            electiveClassName: electiveClassName,
+                                            students: [student.name]
+                                        });
+                                        console.log('[TEACHER_ELECTIVE] Added elective class:', subject, 'for teacher', normalizedTeacher, 'in', classroom, 'class:', electiveClassName);
+                                    }
+                                });
                             }
                         }
                     }
@@ -3723,11 +3834,16 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                                 subject = content.substring(subjectStart + 26, subjectEnd);
                             }
 
-                            // 교사 정보 추출
-                            const teacherStart = content.indexOf('<span class="teacher-name">');
-                            const teacherEnd = content.indexOf('</span>', teacherStart);
-                            if (teacherStart !== -1 && teacherEnd !== -1) {
-                                teacher = content.substring(teacherStart + 27, teacherEnd);
+                            // 교사 정보 추출 (협력수업: 여러 교사가 있을 수 있음)
+                            const teachers = [];
+                            let tSearchPos = 0;
+                            while (true) {
+                                const tStart = content.indexOf('<span class="teacher-name">', tSearchPos);
+                                if (tStart === -1) break;
+                                const tEnd = content.indexOf('</span>', tStart);
+                                if (tEnd === -1) break;
+                                teachers.push(content.substring(tStart + 27, tEnd));
+                                tSearchPos = tEnd + 7;
                             }
 
                             // 선택반명 추출 (선택과목 여부 판별)
@@ -3740,50 +3856,49 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                                 }
                             }
 
-                            if (teacher && subject) {
+                            if (teachers.length > 0 && subject) {
                                 const periodKey = day + (i + 1);
 
-                                if (!teacherData[teacher]) {
-                                    teacherData[teacher] = {};
-                                }
-                                if (!teacherData[teacher][periodKey]) {
-                                    teacherData[teacher][periodKey] = [];
-                                }
-
-                                // 선택과목이면 electiveClassName+classroom으로 중복 체크
-                                // 고정과목이면 subject+classroom으로 중복 체크
-                                let existing;
-                                if (electiveClassName) {
-                                    existing = teacherData[teacher][periodKey].find(
-                                        item => item.subject === subject && item.classroom === classroom && item.electiveClassName === electiveClassName
-                                    );
-                                } else {
-                                    existing = teacherData[teacher][periodKey].find(
-                                        item => item.subject === subject && item.classroom === classroom && !item.electiveClassName
-                                    );
-                                }
-
-                                if (existing) {
-                                    if (!existing.students.includes(student.name)) {
-                                        existing.students.push(student.name);
+                                teachers.forEach(teacherItem => {
+                                    if (!teacherData[teacherItem]) {
+                                        teacherData[teacherItem] = {};
                                     }
-                                } else {
-                                    const entry = {
-                                        subject: subject,
-                                        classroom: classroom,
-                                        students: [student.name]
-                                    };
+                                    if (!teacherData[teacherItem][periodKey]) {
+                                        teacherData[teacherItem][periodKey] = [];
+                                    }
+
+                                    let existing;
                                     if (electiveClassName) {
-                                        entry.electiveClassName = electiveClassName;
+                                        existing = teacherData[teacherItem][periodKey].find(
+                                            item => item.subject === subject && item.classroom === classroom && item.electiveClassName === electiveClassName
+                                        );
                                     } else {
-                                        // 고정수업: 교실이 없으면 homeroom 사용
-                                        if (!classroom) {
-                                            entry.classroom = student.homeroom;
-                                        }
-                                        entry.homeroom = student.homeroom;
+                                        existing = teacherData[teacherItem][periodKey].find(
+                                            item => item.subject === subject && item.classroom === classroom && !item.electiveClassName
+                                        );
                                     }
-                                    teacherData[teacher][periodKey].push(entry);
-                                }
+
+                                    if (existing) {
+                                        if (!existing.students.includes(student.name)) {
+                                            existing.students.push(student.name);
+                                        }
+                                    } else {
+                                        const entry = {
+                                            subject: subject,
+                                            classroom: classroom,
+                                            students: [student.name]
+                                        };
+                                        if (electiveClassName) {
+                                            entry.electiveClassName = electiveClassName;
+                                        } else {
+                                            if (!classroom) {
+                                                entry.classroom = student.homeroom;
+                                            }
+                                            entry.homeroom = student.homeroom;
+                                        }
+                                        teacherData[teacherItem][periodKey].push(entry);
+                                    }
+                                });
                             }
                         }
                     }
