@@ -336,7 +336,13 @@
             const overlay = document.createElement('div');
             overlay.className = 'loading-overlay';
             overlay.id = 'loading-overlay';
-            overlay.innerHTML = `<div class="spinner"></div><div class="loading-text">${message}</div>`;
+            const spinner = document.createElement('div');
+            spinner.className = 'spinner';
+            const text = document.createElement('div');
+            text.className = 'loading-text';
+            text.textContent = message;
+            overlay.appendChild(spinner);
+            overlay.appendChild(text);
             document.body.appendChild(overlay);
         }
 
@@ -422,8 +428,7 @@
                         timetableData.weeklyFormat = detectTimetableFormat(previewData);
                         const formatName = timetableData.weeklyFormat === 'formatB' ? '압핀 양식' : '컴시간 양식';
 
-                        const headerRow = timetableData.weeklyFormat === 'formatB' ? 0 : 0;
-                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, range: headerRow, defval: "" });
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, range: 0, defval: "" });
 
                         console.log('[UPLOAD] 엑셀 파일 처음 5행:');
                         for (let i = 0; i < Math.min(5, jsonData.length); i++) {
@@ -571,7 +576,7 @@
 
                 selectionList.sort((a, b) => {
                     if (a.grade !== b.grade) return String(a.grade).localeCompare(String(b.grade));
-                    return a.selectionGroup.localeCompare(b.selectionGroup, undefined, {numeric: true});
+                    return String(a.selectionGroup).localeCompare(String(b.selectionGroup), undefined, {numeric: true});
                 });
 
                 const groupTimings = {};
@@ -652,11 +657,12 @@
 
                 const findTimeInfo = (grade, group, timings) => {
                     let allTimes = [];
+                    const g = String(group);
                     const checkAndAddTime = (key) => { if (timings[key]) allTimes.push(...timings[key]); };
 
-                    checkAndAddTime(`${grade}_${group}`);
-                    checkAndAddTime(`${grade}_${group.toUpperCase()}`);
-                    if (group.length > 0) checkAndAddTime(`${grade}_${group.charAt(0).toUpperCase()}`);
+                    checkAndAddTime(`${grade}_${g}`);
+                    checkAndAddTime(`${grade}_${g.toUpperCase()}`);
+                    if (g.length > 0) checkAndAddTime(`${grade}_${g.charAt(0).toUpperCase()}`);
 
                     return allTimes.filter((time, index, self) => index === self.findIndex((t) => t.day === time.day && t.period === time.period));
                 };
@@ -849,41 +855,35 @@
                 maxPeriods = Math.max(...periodCounts, 0);
                 periodStructure = { periodCounts, maxPeriods };
 
-                const teacherInfo = {};
-
-                for (let i = 0; i < weeklyRaw.length; i++) {
-                    const row = weeklyRaw[i];
-                    if (!row || !row[0]) continue;
-
-                    const classMatch = String(row[0]).match(/^(\d)-(\d+)$/);
-                    if (classMatch) {
-                        const homeroom = `${classMatch[1]}-${classMatch[2]}`;
-                        teacherInfo[homeroom] = {};
-
-                        daysInOrder.forEach(day => {
-                            if (!dayRanges[day]) return;
-                            teacherInfo[homeroom][day] = {};
-
-                            dayRanges[day].forEach(periodInfo => {
-                                const cellValue = row[periodInfo.column];
-                                if (cellValue) {
-                                    const periodIndex = parseInt(periodInfo.period, 10);
-                                    const teacherMatch = String(cellValue).match(/([가-힣]{2,4})$/);
-                                    if (teacherMatch) {
-                                        teacherInfo[homeroom][day][periodIndex] = teacherMatch[1];
-                                    }
-                                }
-                            });
-                        });
+                // 교사 열 감지 (헤더에서 "교사" 찾기)
+                let teacherColIndex = -1;
+                for (let i = 0; i < dayHeaders.length; i++) {
+                    if (dayHeaders[i] && String(dayHeaders[i]).trim() === '교사') {
+                        teacherColIndex = i;
+                        break;
                     }
                 }
 
-                for (let i = 4; i < weeklyRaw.length; i += 2) {
-                    const subjectRow = weeklyRaw[i];
-                    const locationRow = weeklyRaw[i + 1];
+                // 과목행과 교실행 쌍을 동적으로 찾기
+                // 과목행: 첫 칸에 내용이 있는 행, 교실행: 바로 다음 행의 첫 칸이 비어있음
+                const rowPairs = [];
+                for (let i = 4; i < weeklyRaw.length - 1; i++) {
+                    const row = weeklyRaw[i];
+                    const nextRow = weeklyRaw[i + 1];
+                    if (!row || !nextRow) continue;
+                    const hasContent = row[0] !== '' && row[0] !== null && row[0] !== undefined;
+                    const nextIsEmpty = nextRow[0] === '' || nextRow[0] === null || nextRow[0] === undefined;
+                    if (hasContent && nextIsEmpty) {
+                        rowPairs.push({ subjectRow: row, locationRow: nextRow });
+                        i++; // 교실행 건너뛰기
+                    }
+                }
 
-                    if (!subjectRow || !locationRow) continue;
-                    if (locationRow[0] !== '' && locationRow[0] !== null && locationRow[0] !== undefined) continue;
+                rowPairs.forEach(({ subjectRow, locationRow }) => {
+                    // 교사명: 교사 열 또는 첫 번째 열에서 읽기
+                    const rowTeacher = teacherColIndex >= 0
+                        ? String(subjectRow[teacherColIndex] || '').trim()
+                        : String(subjectRow[0] || '').trim();
 
                     daysInOrder.forEach(day => {
                         if (!dayRanges[day]) return;
@@ -905,15 +905,12 @@
 
                                     if (periodIndex >= 1) {
                                         const arrayIndex = periodIndex - 1;
-                                        const teacherName = teacherInfo[homeroom] &&
-                                                           teacherInfo[homeroom][day] &&
-                                                           teacherInfo[homeroom][day][periodIndex] || '';
 
                                         const subjectName = String(subject).trim();
 
                                         fixedSchedules[homeroom].schedule[day][arrayIndex] = {
                                             subject: subjectName,
-                                            teacher: teacherName,
+                                            teacher: rowTeacher,
                                             location: ''
                                         };
                                     }
@@ -921,15 +918,9 @@
                             }
                         });
                     });
-                }
+                });
 
-                for (let i = 4; i < weeklyRaw.length; i += 2) {
-                    const subjectRow = weeklyRaw[i];
-                    const locationRow = weeklyRaw[i + 1];
-
-                    if (!subjectRow || !locationRow) continue;
-                    if (locationRow[0] !== '' && locationRow[0] !== null && locationRow[0] !== undefined) continue;
-
+                rowPairs.forEach(({ subjectRow, locationRow }) => {
                     daysInOrder.forEach(day => {
                         if (!dayRanges[day]) return;
                         dayRanges[day].forEach(periodInfo => {
@@ -953,7 +944,7 @@
                             }
                         });
                     });
-                }
+                });
 
             } else { // formatA (컴시간 양식)
                 const totalCells = weeklyRaw.length > 0 && weeklyRaw[0].length > 1 ? weeklyRaw[0].length - 1 : 33;
@@ -1058,10 +1049,20 @@
                     if (dayHeaders[ci] && ['월','화','수','목','금'].includes(dayHeaders[ci])) curDay = dayHeaders[ci];
                     if (curDay && periodHeaders[ci]) colMap[ci] = { day: curDay, period: parseInt(periodHeaders[ci], 10) };
                 }
+                // 교사 열 감지
+                let tmTeacherCol = -1;
+                for (let ti = 0; ti < dayHeaders.length; ti++) {
+                    if (dayHeaders[ti] && String(dayHeaders[ti]).trim() === '교사') {
+                        tmTeacherCol = ti;
+                        break;
+                    }
+                }
                 for (let ri = 4; ri < wRaw.length; ri++) {
                     const sRow = wRaw[ri];
                     if (!sRow || !sRow[0]) continue;
-                    const tName = String(sRow[0]).trim();
+                    const tName = tmTeacherCol >= 0
+                        ? String(sRow[tmTeacherCol] || '').trim()
+                        : String(sRow[0]).trim();
                     if (!tName) continue;
                     for (let ci = 1; ci < sRow.length; ci++) {
                         if (sRow[ci] && colMap[ci]) {
@@ -1121,7 +1122,7 @@
                     };
 
                     daysInOrder.forEach(d => {
-                        student.schedule[d] = Array(student.maxPeriods).fill('');
+                        student.schedule[d] = Array(student.maxPeriods).fill(null);
                     });
 
                     // 선택과목 배치 (같은 키에 여러 교사가 있을 때 시간대별 실제 교사 매칭)
@@ -1155,36 +1156,23 @@
                                     if (infoList.length > 1) {
                                         matchedInfos = infoList.filter(info => {
                                             if (!info.teacher) return false;
-                                            // 주간시간표에 아예 없는 교사 → 수동 추가 협력교사 → 항상 포함
                                             if (!teacherExistsInWeekly[info.teacher]) return true;
-                                            // 주간시간표에 있는 교사 → 해당 시간에 수업하는지 확인
                                             return teacherTimeMap[`${info.teacher}_${day}_${period}`];
                                         });
                                     }
-                                    // 매칭된 교사가 없으면 전체 목록 사용
                                     if (matchedInfos.length === 0) matchedInfos = [infoList[0]];
 
                                     const primaryInfo = matchedInfos[0];
-                                    const details = [];
-                                    if (primaryInfo.location) {
-                                        details.push(`<span class="location-chip">${primaryInfo.location}</span>`);
-                                    }
-                                    // 모든 매칭된 교사 표시
                                     const teacherNames = matchedInfos
                                         .map(info => info.teacher)
                                         .filter(t => t);
-                                    if (teacherNames.length > 0) {
-                                        teacherNames.forEach(t => {
-                                            details.push(`<span class="teacher-name">${t}</span>`);
-                                        });
-                                    }
 
-                                    const content = `
-                                        <div class="subject-name">${primaryInfo.subject}</div>
-                                        <span class="elective-class-name" style="display:none;">${selectionGroup}</span>
-                                        ${details.length > 0 ? `<div class="details">${details.join('')}</div>` : ''}
-                                    `;
-                                    student.schedule[day][periodIndex] = content;
+                                    student.schedule[day][periodIndex] = {
+                                        subject: primaryInfo.subject,
+                                        teachers: teacherNames,
+                                        location: primaryInfo.location || '',
+                                        electiveClassName: selectionGroup
+                                    };
                                 });
                             }
                         }
@@ -1198,17 +1186,12 @@
                             for (let i = 0; i < student.maxPeriods; i++) {
                                 const subjectInfo = fixedSchedule.schedule[day]?.[i];
                                 if (i < student.periodCounts[dayIndex] && !student.schedule[day][i] && subjectInfo) {
-                                    const details = [];
-                                    if (subjectInfo.teacher) {
-                                        details.push(`<span class="teacher-name">${subjectInfo.teacher}</span>`);
-                                    }
-                                    if (subjectInfo.location) {
-                                        details.push(`<span class="location-chip">${subjectInfo.location}</span>`);
-                                    }
-                                    student.schedule[day][i] = `
-                                        <div class="subject-name">${subjectInfo.subject}</div>
-                                        ${details.length > 0 ? `<div class="details">${details.join('<br>')}</div>` : ''}
-                                    `;
+                                    student.schedule[day][i] = {
+                                        subject: subjectInfo.subject,
+                                        teachers: subjectInfo.teacher ? [subjectInfo.teacher] : [],
+                                        location: subjectInfo.location || '',
+                                        electiveClassName: null
+                                    };
                                 }
                             }
                         });

@@ -1360,35 +1360,11 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
         teacher: enabledFeatures.teacher !== false
     };
     
-    console.log('[FEATURES] Safe features applied:', safeEnabledFeatures);
-    
     return `
-        // 디버깅: 생성된 JavaScript에서 features 확인
-        console.log('[FEATURES] Templates received features:', ${JSON.stringify(safeEnabledFeatures)});
-        
         const allStudents = ${dataJsonString};
-        console.log('학생 데이터 (첫 5개):', allStudents.slice(0, 5));
         const enabledFeatures = ${JSON.stringify(safeEnabledFeatures)};
         const weeklyScheduleData = ${weeklyData ? JSON.stringify(weeklyData) : 'null'};
         const weeklyFormat = '${weeklyFormat || 'formatA'}';
-        console.log('주간시간표 데이터:', weeklyScheduleData ? '로드됨' : '없음');
-        console.log('주간시간표 포맷:', weeklyFormat);
-        
-        // 정규식 패턴들을 미리 정의 (템플릿 리터럴 오류 방지)
-        const regexPatterns = {
-            locationChip: new RegExp('<span class="location-chip">([^<]+)</span>', 'g'),
-            subjectName: new RegExp('<div class="subject-name">([^<]+)</div>', 'g'),
-            teacherName: new RegExp('<span class="teacher-name">([^<]+)</span>', 'g')
-        };
-        
-        // 추가 디버깅
-        console.log('[FEATURES] Final enabledFeatures in runtime:', enabledFeatures);
-        console.log('[FEATURES] Available features check:', {
-            student: enabledFeatures.student,
-            class: enabledFeatures.class,
-            classroom: enabledFeatures.classroom,
-            teacher: enabledFeatures.teacher
-        });
         
         // 데이터 전처리
         allStudents.forEach((student, index) => {
@@ -1401,35 +1377,17 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
         // 각종 데이터 추출
         const classData = extractClassData(allStudents);
         
-        // 교실별 데이터: 1단계 주간시간표의 고정수업을 기본으로 하고, 2단계 선택과목으로 보완
+        // 교실별/선생님별 데이터: 주간시간표 고정수업 기반 + 선택과목 보완
         let classroomData = {};
-        if (weeklyScheduleData) {
-            // 1단계: 주간시간표에서 고정수업의 교실별 데이터 추출 (fixedSchedules 방식과 동일)
-            const fixedSchedules = processWeeklyDataForFixedSchedules(weeklyScheduleData, weeklyFormat);
-            classroomData = extractClassroomDataFromFixedSchedules(fixedSchedules);
-            console.log('[CLASSROOM] Fixed schedules classroom data extracted:', Object.keys(classroomData).length, 'classrooms');
-            
-            // 2단계: 선택과목 정보를 교실별로 추가
-            addElectiveSubjectsToClassrooms(classroomData, allStudents);
-            console.log('[CLASSROOM] Added elective subjects');
-        } else {
-            // 주간시간표가 없으면 학생 데이터만 사용
-            classroomData = extractClassroomData(allStudents);
-        }
-        
-        // 선생님별 데이터: 1단계 주간시간표의 고정수업을 기본으로 하고, 2단계 선택과목으로 보완
         let teacherData = {};
         if (weeklyScheduleData) {
-            // 1단계: 주간시간표에서 고정수업의 선생님별 데이터 추출
             const fixedSchedules = processWeeklyDataForFixedSchedules(weeklyScheduleData, weeklyFormat);
+            classroomData = extractClassroomDataFromFixedSchedules(fixedSchedules);
+            addElectiveSubjectsToClassrooms(classroomData, allStudents);
             teacherData = extractTeacherDataFromFixedSchedules(fixedSchedules);
-            console.log('[TEACHER] Fixed schedules teacher data extracted:', Object.keys(teacherData).length, 'teachers');
-            
-            // 2단계: 선택과목 정보를 선생님별로 추가
             addElectiveSubjectsToTeachers(teacherData, allStudents);
-            console.log('[TEACHER] Added elective subjects');
         } else {
-            // 주간시간표가 없으면 학생 데이터만 사용
+            classroomData = extractClassroomData(allStudents);
             teacherData = extractTeacherData(allStudents);
         }
 
@@ -1456,17 +1414,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
 
                 const homeroom = student.homeroom || '';
                 const number = student.number !== undefined && student.number !== null ? String(student.number).trim() : '';
-                let studentId = '';
-
-                if (homeroom && number) {
-                    const parts = homeroom.split('-');
-                    if (parts.length === 2) {
-                        const grade = parts[0];
-                        const classNum = String(parts[1]).padStart(2, '0');
-                        const studentNum = number.padStart(2, '0');
-                        studentId = grade + classNum + studentNum;
-                    }
-                }
+                const studentId = formatStudentId(homeroom, number);
 
                 index[name].push({
                     name: name,
@@ -1495,6 +1443,36 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                 return '"' + stringValue.replace(/"/g, '""') + '"';
             }
             return stringValue;
+        }
+
+        function renderScheduleCell(cell) {
+            if (!cell || !cell.subject) return '';
+            let html = '';
+            if (cell.electiveClassName) {
+                html += '<span class="elective-class-name" style="display:none;">' + escapeHtml(cell.electiveClassName) + '</span>';
+            }
+            html += '<div class="subject-name">' + escapeHtml(cell.subject) + '</div>';
+            html += '<div class="details">';
+            if (cell.teachers && cell.teachers.length > 0) {
+                html += cell.teachers.map(function(t) {
+                    return '<span class="teacher-name">' + escapeHtml(t) + '</span>';
+                }).join(' ');
+            }
+            if (cell.location) {
+                html += '<span class="location-chip">' + escapeHtml(cell.location) + '</span>';
+            }
+            html += '</div>';
+            return html;
+        }
+
+        function formatStudentId(homeroom, number) {
+            if (!homeroom || !number || String(number).trim() === '') return '';
+            const parts = homeroom.split('-');
+            if (parts.length !== 2) return '';
+            var grade = parts[0];
+            var classNum = parts[1].padStart(2, '0');
+            var studentNum = String(number).trim().padStart(2, '0');
+            return grade + classNum + studentNum;
         }
 
         function sanitizeFileName(name) {
@@ -1894,17 +1872,11 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
         
 
         function init() {
-            console.log('[INIT] Initializing timetable system...');
-            console.log('[INIT] Features check at init:', enabledFeatures);
-            
-            // DOM이 준비될 때까지 기다림
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', () => {
-                    console.log('[INIT] DOM loaded, starting setup...');
                     performInit();
                 });
             } else {
-                console.log('[INIT] DOM already loaded, starting setup...');
                 performInit();
             }
         }
@@ -1915,7 +1887,6 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                 updateSearchSection();
                 showEmptyState();
                 setupModalEventListeners();
-                console.log('[INIT] Initialization completed successfully');
             } catch (error) {
                 console.error('[INIT] Initialization failed:', error);
                 // 오류 발생시 기본 탭이라도 보여주기
@@ -1956,8 +1927,6 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
             const tabsHtml = [];
             const availableModes = [];
             
-            console.log('🏗️ Setting up tabs with features:', enabledFeatures); // 디버깅용
-            
             // enabledFeatures가 없거나 모든 기능이 비활성화된 경우 기본값 설정
             const safeFeatures = enabledFeatures || {};
             const hasAnyFeature = safeFeatures.student || safeFeatures.class || safeFeatures.classroom || safeFeatures.teacher;
@@ -1972,7 +1941,6 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
             const tabLabels = {student: '학생별', class: '반별', classroom: '교실별', teacher: '선생님별'};
 
             if (!hasAnyFeature) {
-                console.warn('[TABS] No features enabled, using defaults');
                 safeFeatures.student = true;
                 safeFeatures.class = true;
                 safeFeatures.classroom = true;
@@ -1982,50 +1950,45 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
             if (safeFeatures.student) {
                 availableModes.push('student');
                 tabsHtml.push('<button class="tab-button" data-mode="student">' + tabIcons.student + tabLabels.student + '</button>');
-                console.log('[TABS] Student tab added');
+
             }
             if (safeFeatures.class) {
                 availableModes.push('class');
                 tabsHtml.push('<button class="tab-button" data-mode="class">' + tabIcons.class + tabLabels.class + '</button>');
-                console.log('[TABS] Class tab added');
+
             }
             if (safeFeatures.classroom) {
                 availableModes.push('classroom');
                 tabsHtml.push('<button class="tab-button" data-mode="classroom">' + tabIcons.classroom + tabLabels.classroom + '</button>');
-                console.log('[TABS] Classroom tab added');
+
             }
             if (safeFeatures.teacher) {
                 availableModes.push('teacher');
                 tabsHtml.push('<button class="tab-button" data-mode="teacher">' + tabIcons.teacher + tabLabels.teacher + '</button>');
-                console.log('[TABS] Teacher tab added');
+
             }
 
             const tabNavigation = document.querySelector('.tab-navigation');
 
             if (availableModes.length === 0) {
-                console.error('[TABS] No features enabled after safety check!');
                 tabNavigation.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">선택된 조회 기능이 없습니다.</div>';
                 return;
             }
             
             // 첫 번째 사용 가능한 모드를 기본값으로 설정
             currentMode = availableModes[0];
-            console.log('[TABS] Current mode set to:', currentMode);
-            
+
             tabNavigation.innerHTML = tabsHtml.join('');
-            console.log('[TABS] Generated tabs:', tabsHtml.length);
-            
+
             // 첫 번째 탭을 활성화
             const firstTab = document.querySelector('.tab-button');
             if (firstTab) {
                 firstTab.classList.add('active');
-                console.log('[TABS] First tab activated:', firstTab.dataset.mode);
             }
-            
+
             // 탭 클릭 이벤트
             document.querySelectorAll('.tab-button').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    console.log('[TABS] Tab clicked:', btn.dataset.mode);
                     document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                     currentMode = btn.dataset.mode;
@@ -2172,24 +2135,9 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                 let displayName = '';
                 
                 if (item.type === 'student' || !item.type) {
-                    // 이름(학번) 형식으로 표시 - 학년+반+번호
                     const name = item.name || '이름없음';
-                    const homeroom = item.homeroom || '';
-                    const number = item.number || '';
-                    
-                    displayName = name;
-                    
-                    // 학번 생성: 학년+반+번호
-                    if (homeroom && number && String(number).trim() !== '') {
-                        const parts = homeroom.split('-');
-                        if (parts.length === 2) {
-                            const grade = parts[0]; // 학년
-                            const classNum = parts[1].padStart(2, '0'); // 반 (2자리)
-                            const studentNum = String(number).trim().padStart(2, '0'); // 번호 (2자리)
-                            const studentId = grade + classNum + studentNum; // 예: 20506
-                            displayName = name + ' (' + studentId + ')';
-                        }
-                    }
+                    const studentId = formatStudentId(item.homeroom || '', item.number || '');
+                    displayName = studentId ? name + ' (' + studentId + ')' : name;
                 } else {
                     displayName = item.name || '이름없음';
                 }
@@ -2234,22 +2182,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
             const days = ['월', '화', '수', '목', '금'];
             const { maxPeriods, periodCounts } = student;
             
-            // 학번 표시 준비 - 학년+반+번호 형식으로 변경
-            const homeroom = student.homeroom || '';
-            const number = student.number ? String(student.number) : '';
-            let studentId = '';
-            
-            if (homeroom && number) {
-                // homeroom이 "2-5" 형식인 경우
-                const parts = homeroom.split('-');
-                if (parts.length === 2) {
-                    const grade = parts[0]; // 학년
-                    const classNum = parts[1].padStart(2, '0'); // 반 (2자리)
-                    const studentNum = number.padStart(2, '0'); // 번호 (2자리)
-                    studentId = grade + classNum + studentNum; // 예: 20506
-                }
-            }
-            
+            const studentId = formatStudentId(student.homeroom || '', student.number ? String(student.number) : '');
             const displayName = studentId ? student.name + ' (' + studentId + ')' : student.name;
             
             let tableHTML = '<div class="schedule-header">' +
@@ -2284,15 +2217,15 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                 tableHTML += '<tr><td>' + (i + 1) + '</td>';
                 days.forEach((day, dayIndex) => {
                     if (i < (periodCounts[dayIndex] || 0)) {
-                        const cellContent = student.schedule[day][i] || '';
-                        tableHTML += '<td>' + cellContent + '</td>';
+                        const cell = student.schedule[day][i];
+                        tableHTML += '<td>' + renderScheduleCell(cell) + '</td>';
                     } else {
                         tableHTML += '<td class="empty-cell"></td>';
                     }
                 });
                 tableHTML += '</tr>';
             }
-            
+
             tableHTML += '</tbody></table></div>';
             scheduleContainer.innerHTML = tableHTML;
         }
@@ -2346,21 +2279,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                 if (index > 0 && index % 4 === 0) {
                     html += '</div><div class="class-schedule-print-container pocket-page-break">';
                 }
-                // 학번 생성: 학년+반+번호
-                const homeroom = student.homeroom || '';
-                const number = student.number || '';
-                let studentId = '';
-                
-                if (homeroom && number) {
-                    const parts = homeroom.split('-');
-                    if (parts.length === 2) {
-                        const grade = parts[0]; // 학년
-                        const classNum = parts[1].padStart(2, '0'); // 반 (2자리)
-                        const studentNum = String(number).padStart(2, '0'); // 번호 (2자리)
-                        studentId = grade + classNum + studentNum; // 예: 20506
-                    }
-                }
-                
+                const studentId = formatStudentId(student.homeroom || '', student.number || '');
                 const displayName = studentId ? student.name + ' (' + studentId + ')' : student.name;
                 const logoEl = document.querySelector('.title-icon');
                 const logoSrc = logoEl ? logoEl.src : '';
@@ -2379,8 +2298,8 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                     html += '<tr><td>' + (i + 1) + '</td>';
                     days.forEach((day, dayIndex) => {
                         if (i < (student.periodCounts[dayIndex] || 0)) {
-                            const cellContent = student.schedule[day][i] || '';
-                            html += '<td>' + cellContent + '</td>';
+                            const cell = student.schedule[day][i];
+                            html += '<td>' + renderScheduleCell(cell) + '</td>';
                         } else {
                             html += '<td class="empty-cell"></td>';
                         }
@@ -2398,7 +2317,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
         function displayClassroomSchedule(classroomId) {
             const scheduleData = classroomData[classroomId] || {};
             const days = ['월', '화', '수', '목', '금'];
-            const maxPeriods = 7; // 기본값
+            const maxPeriods = getTeacherMaxPeriods(scheduleData);
             closeStudentListModal();
             clearStudentListStore();
             
@@ -2480,7 +2399,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
         function displayTeacherSchedule(teacherId) {
             const scheduleData = teacherData[teacherId] || {};
             const days = ['월', '화', '수', '목', '금'];
-            const maxPeriods = 7; // 기본값
+            const maxPeriods = getTeacherMaxPeriods(scheduleData);
             closeStudentListModal();
             clearStudentListStore();
             
@@ -2616,7 +2535,6 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
 
         // 주간시간표에서 고정수업 데이터 처리 (index.html의 processAllData와 동일한 방식)
         function processWeeklyDataForFixedSchedules(weeklyData, weeklyFormat) {
-            console.log('[FIXED] Processing weekly data for fixed schedules');
             const fixedSchedules = {};
             const daysInOrder = ['월', '화', '수', '목', '금'];
             let periodStructure, maxPeriods;
@@ -2642,43 +2560,38 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                 maxPeriods = Math.max(...periodCounts, 0);
                 periodStructure = { periodCounts, maxPeriods };
 
-                // 교사 정보 수집
-                const teacherInfo = {};
-                for (let i = 0; i < weeklyData.length; i++) {
+                // 교사 열 감지 (헤더에서 "교사" 찾기)
+                var teacherColIndex = -1;
+                for (var ti = 0; ti < dayHeaders.length; ti++) {
+                    if (dayHeaders[ti] && String(dayHeaders[ti]).trim() === '교사') {
+                        teacherColIndex = ti;
+                        break;
+                    }
+                }
+
+                // 과목행과 교실행 쌍을 동적으로 찾기
+                const rowPairs = [];
+                for (let i = 4; i < weeklyData.length - 1; i++) {
                     const row = weeklyData[i];
-                    if (!row || !row[0]) continue;
-                    
-                    const classMatch = String(row[0]).match(/^(\\d)-(\\d+)$/);
-                    if (classMatch) {
-                        const homeroom = classMatch[1] + '-' + classMatch[2];
-                        teacherInfo[homeroom] = {};
-                        
-                        daysInOrder.forEach(day => {
-                            if (!dayRanges[day]) return;
-                            teacherInfo[homeroom][day] = {};
-                            
-                            dayRanges[day].forEach(periodInfo => {
-                                const cellValue = row[periodInfo.column];
-                                if (cellValue) {
-                                    const periodIndex = parseInt(periodInfo.period, 10);
-                                    const teacherMatch = String(cellValue).match(/([가-힣]{2,4})$/);
-                                    if (teacherMatch) {
-                                        teacherInfo[homeroom][day][periodIndex] = teacherMatch[1];
-                                    }
-                                }
-                            });
-                        });
+                    const nextRow = weeklyData[i + 1];
+                    if (!row || !nextRow) continue;
+                    var hasContent = row[0] !== '' && row[0] !== null && row[0] !== undefined;
+                    var nextIsEmpty = nextRow[0] === '' || nextRow[0] === null || nextRow[0] === undefined;
+                    if (hasContent && nextIsEmpty) {
+                        rowPairs.push({ subjectRow: row, locationRow: nextRow });
+                        i++;
                     }
                 }
 
                 // 과목과 교실 정보 처리
-                for (let i = 4; i < weeklyData.length; i += 2) {
-                    const subjectRow = weeklyData[i];
-                    const locationRow = weeklyData[i + 1];
+                rowPairs.forEach(function(pair) {
+                    var subjectRow = pair.subjectRow;
+                    var locationRow = pair.locationRow;
+                    // 교사명: 교사 열 또는 첫 번째 열에서 읽기
+                    var rowTeacher = teacherColIndex >= 0
+                        ? String(subjectRow[teacherColIndex] || '').trim()
+                        : String(subjectRow[0] || '').trim();
 
-                    if (!subjectRow || !locationRow) continue;
-                    if (locationRow[0] !== '' && locationRow[0] !== null && locationRow[0] !== undefined) continue;
-                    
                     daysInOrder.forEach(day => {
                         if (!dayRanges[day]) return;
                         dayRanges[day].forEach(periodInfo => {
@@ -2687,27 +2600,24 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
 
                             if (subject && location) {
                                 const periodIndex = parseInt(periodInfo.period, 10);
-                                
+
                                 if (/^\\d+-\\d+$/.test(String(location).trim())) {
                                     const homeroom = String(location).trim();
                                     if (!fixedSchedules[homeroom]) {
                                         fixedSchedules[homeroom] = { schedule: {} };
-                                        daysInOrder.forEach(d => { 
-                                            fixedSchedules[homeroom].schedule[d] = Array(maxPeriods).fill(null); 
+                                        daysInOrder.forEach(d => {
+                                            fixedSchedules[homeroom].schedule[d] = Array(maxPeriods).fill(null);
                                         });
                                     }
-                                    
+
                                     if (periodIndex >= 1) {
                                         const arrayIndex = periodIndex - 1;
-                                        const teacherName = teacherInfo[homeroom] && 
-                                                           teacherInfo[homeroom][day] && 
-                                                           teacherInfo[homeroom][day][periodIndex] || '';
-                                        
+
                                         const subjectName = String(subject).trim();
-                                        
-                                        fixedSchedules[homeroom].schedule[day][arrayIndex] = { 
-                                            subject: subjectName, 
-                                            teacher: teacherName,
+
+                                        fixedSchedules[homeroom].schedule[day][arrayIndex] = {
+                                            subject: subjectName,
+                                            teacher: rowTeacher,
                                             location: ''
                                         };
                                     }
@@ -2715,16 +2625,12 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                             }
                         });
                     });
-                }
-                
-                // 교실 정보 보완
-                for (let i = 4; i < weeklyData.length; i += 2) {
-                    const subjectRow = weeklyData[i];
-                    const locationRow = weeklyData[i + 1];
+                });
 
-                    if (!subjectRow || !locationRow) continue;
-                    if (locationRow[0] !== '' && locationRow[0] !== null && locationRow[0] !== undefined) continue;
-                    
+                // 교실 정보 보완
+                rowPairs.forEach(function(pair) {
+                    var subjectRow = pair.subjectRow;
+                    var locationRow = pair.locationRow;
                     daysInOrder.forEach(day => {
                         if (!dayRanges[day]) return;
                         dayRanges[day].forEach(periodInfo => {
@@ -2735,7 +2641,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                                 const classroomName = String(location).trim();
                                 const subjectName = String(subject).trim();
                                 const periodIndex = parseInt(periodInfo.period, 10);
-                                
+
                                 Object.keys(fixedSchedules).forEach(homeroom => {
                                     const arrayIndex = periodIndex - 1;
                                     if (arrayIndex >= 0 && fixedSchedules[homeroom].schedule[day][arrayIndex]) {
@@ -2748,7 +2654,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                             }
                         });
                     });
-                }
+                });
                 
             } else {
                 // formatA (컴시간 양식) 처리
@@ -2820,7 +2726,6 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                 });
             }
             
-            console.log('[FIXED] Fixed schedules created for', Object.keys(fixedSchedules).length, 'homerooms');
             return fixedSchedules;
         }
 
@@ -2837,7 +2742,6 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
 
         // 고정수업 데이터에서 교실별 데이터 추출
         function extractClassroomDataFromFixedSchedules(fixedSchedules) {
-            console.log('[EXTRACT] Extracting classroom data from fixed schedules');
             const classroomData = {};
             const daysInOrder = ['월', '화', '수', '목', '금'];
             
@@ -2879,135 +2783,78 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                             homeroom: homeroom // 어느 반의 고정수업인지 기록
                         });
                         
-                        console.log('[EXTRACT] Added fixed class:', subjectInfo.subject, 'in', normalizedClassroom, 'for', homeroom);
                     });
                 });
             });
-            
-            console.log('[EXTRACT] Classroom data extracted:', Object.keys(classroomData));
+
             return classroomData;
         }
 
         // 선택과목을 교실별 데이터에 추가
         function addElectiveSubjectsToClassrooms(classroomData, allStudents) {
-            console.log('[ELECTIVE] Adding elective subjects to classrooms');
             const daysInOrder = ['월', '화', '수', '목', '금'];
-            
-            // 1. 고정수업에 학생 정보 추가
+
             allStudents.forEach(student => {
                 daysInOrder.forEach(day => {
                     for (let i = 0; i < student.maxPeriods; i++) {
-                        const content = student.schedule[day][i];
-                        
-                        // 고정수업인지 확인 (elective-class-name 태그가 없는 경우)
-                        if (content && !content.includes('<span class="elective-class-name"')) {
-                            // subject-name div가 있으면 HTML에서 과목명 추출, 없으면 plain text
-                            let subject = '';
-                            const subjectTagStart = content.indexOf('<div class="subject-name">');
-                            if (subjectTagStart !== -1) {
-                                const subjectTagEnd = content.indexOf('</div>', subjectTagStart);
-                                if (subjectTagEnd !== -1) {
-                                    subject = content.substring(subjectTagStart + 26, subjectTagEnd).trim();
-                                }
-                            } else {
-                                subject = content.trim();
-                            }
-                            if (subject && subject !== '자습' && subject !== '공강') {
-                                // 해당 학생의 homeroom 교실에서 해당 시간의 고정수업 찾기
-                                const normalizedHomeroom = normalizeClassroomName(student.homeroom);
-                                const periodKey = day + (i + 1);
+                        const cell = student.schedule[day][i];
+                        if (!cell || !cell.subject) continue;
 
+                        const periodKey = day + (i + 1);
+
+                        if (!cell.electiveClassName) {
+                            // 고정수업: homeroom 교실에서 해당 시간의 수업 찾아 학생 추가
+                            if (cell.subject !== '자습' && cell.subject !== '공강') {
+                                const normalizedHomeroom = normalizeClassroomName(student.homeroom);
                                 if (classroomData[normalizedHomeroom] && classroomData[normalizedHomeroom][periodKey]) {
                                     const classInfo = classroomData[normalizedHomeroom][periodKey].find(
-                                        item => item.subject === subject && item.homeroom === student.homeroom
+                                        item => item.subject === cell.subject && item.homeroom === student.homeroom
                                     );
                                     if (classInfo && !classInfo.students.includes(student.name)) {
                                         classInfo.students.push(student.name);
                                     }
                                 }
                             }
-                        }
+                        } else {
+                            // 선택과목: 교실별 데이터에 추가
+                            const classroom = cell.location;
+                            const teacher = (cell.teachers && cell.teachers.length > 0) ? cell.teachers[0] : '';
 
-                        // 선택과목인지 확인 (elective-class-name 태그가 있는 경우)
-                        else if (content && content.includes('<span class="elective-class-name"')) {
-                            let classroom = '';
-                            let subject = '';
-                            let teacher = '';
-                            let electiveClassName = '';
-                            
-                            // 교실 정보 추출
-                            const locationStart = content.indexOf('<span class="location-chip">');
-                            const locationEnd = content.indexOf('</span>', locationStart);
-                            if (locationStart !== -1 && locationEnd !== -1) {
-                                classroom = content.substring(locationStart + 28, locationEnd);
-                            }
-                            
-                            // 과목 정보 추출
-                            const subjectStart = content.indexOf('<div class="subject-name">');
-                            const subjectEnd = content.indexOf('</div>', subjectStart);
-                            if (subjectStart !== -1 && subjectEnd !== -1) {
-                                subject = content.substring(subjectStart + 26, subjectEnd);
-                            }
-                            
-                            // 선택과목 반명 정보 추출
-                            const electiveClassNameStart = content.indexOf('<span class="elective-class-name"');
-                            if (electiveClassNameStart !== -1) {
-                                const electiveClassNameContentStart = content.indexOf('>', electiveClassNameStart) + 1;
-                                const electiveClassNameEnd = content.indexOf('</span>', electiveClassNameContentStart);
-                                if (electiveClassNameContentStart > 0 && electiveClassNameEnd !== -1) {
-                                    electiveClassName = content.substring(electiveClassNameContentStart, electiveClassNameEnd);
-                                }
-                            }
-                            
-                            // 교사 정보 추출
-                            const teacherStart = content.indexOf('<span class="teacher-name">');
-                            const teacherEnd = content.indexOf('</span>', teacherStart);
-                            if (teacherStart !== -1 && teacherEnd !== -1) {
-                                teacher = content.substring(teacherStart + 27, teacherEnd);
-                            }
-                            
-                            if (classroom && subject) {
+                            if (classroom && cell.subject) {
                                 const normalizedClassroom = normalizeClassroomName(classroom);
-                                const periodKey = day + (i + 1);
-                                
+
                                 if (!classroomData[normalizedClassroom]) {
                                     classroomData[normalizedClassroom] = {};
                                 }
                                 if (!classroomData[normalizedClassroom][periodKey]) {
                                     classroomData[normalizedClassroom][periodKey] = [];
                                 }
-                                
-                                // 같은 과목과 교사의 수업 찾기
+
                                 let existingClass = classroomData[normalizedClassroom][periodKey].find(
-                                    item => item.subject === subject && item.teacher === teacher
+                                    item => item.subject === cell.subject && item.teacher === teacher
                                 );
-                                
+
                                 if (existingClass) {
-                                    // 기존 수업에 학생 추가
                                     if (!existingClass.students.includes(student.name)) {
                                         existingClass.students.push(student.name);
                                     }
                                 } else {
-                                    // 새 선택과목 수업 추가
                                     classroomData[normalizedClassroom][periodKey].push({
-                                        subject: subject,
+                                        subject: cell.subject,
                                         teacher: teacher,
-                                        students: [student.name]
+                                        students: [student.name],
+                                        electiveClassName: cell.electiveClassName
                                     });
-                                    console.log('[ELECTIVE] Added elective class:', subject, 'in', normalizedClassroom);
                                 }
                             }
                         }
                     }
                 });
             });
-            
-            console.log('[ELECTIVE] Final classroom data:', Object.keys(classroomData));
         }
 
         // 고정수업 데이터에서 선생님별 데이터 추출
         function extractTeacherDataFromFixedSchedules(fixedSchedules) {
-            console.log('[TEACHER_EXTRACT] Extracting teacher data from fixed schedules');
             const teacherData = {};
             const daysInOrder = ['월', '화', '수', '목', '금'];
             
@@ -3045,102 +2892,58 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                             homeroom: homeroom // 어느 반의 고정수업인지 기록
                         });
                         
-                        console.log('[TEACHER_EXTRACT] Added fixed class:', subjectInfo.subject, 'for teacher', teacher, 'in', classroom);
                     });
                 });
             });
-            
-            console.log('[TEACHER_EXTRACT] Teacher data extracted:', Object.keys(teacherData));
+
             return teacherData;
         }
 
         // 선택과목을 선생님별 데이터에 추가
         function addElectiveSubjectsToTeachers(teacherData, allStudents) {
-            console.log('[TEACHER_ELECTIVE] Adding elective subjects to teachers');
             const daysInOrder = ['월', '화', '수', '목', '금'];
-            
-            // 1. 고정수업에 학생 정보 추가
+
+            // 역인덱스: periodKey+subject+homeroom -> classInfo 배열 (O(1) 조회용)
+            const fixedClassIndex = {};
+            Object.keys(teacherData).forEach(teacher => {
+                Object.keys(teacherData[teacher]).forEach(periodKey => {
+                    teacherData[teacher][periodKey].forEach(item => {
+                        if (item.homeroom) {
+                            const key = periodKey + '|' + item.subject + '|' + item.homeroom;
+                            if (!fixedClassIndex[key]) fixedClassIndex[key] = [];
+                            fixedClassIndex[key].push(item);
+                        }
+                    });
+                });
+            });
+
             allStudents.forEach(student => {
                 daysInOrder.forEach(day => {
                     for (let i = 0; i < student.maxPeriods; i++) {
-                        const content = student.schedule[day][i];
-                        
-                        // 고정수업인지 확인 (elective-class-name 태그가 없는 경우)
-                        if (content && !content.includes('<span class="elective-class-name"')) {
-                            // subject-name div가 있으면 HTML에서 과목명 추출, 없으면 plain text
-                            let subject = '';
-                            const subjectTagStart = content.indexOf('<div class="subject-name">');
-                            if (subjectTagStart !== -1) {
-                                const subjectTagEnd = content.indexOf('</div>', subjectTagStart);
-                                if (subjectTagEnd !== -1) {
-                                    subject = content.substring(subjectTagStart + 26, subjectTagEnd).trim();
-                                }
-                            } else {
-                                subject = content.trim();
-                            }
-                            if (subject && subject !== '자습' && subject !== '공강') {
-                                const periodKey = day + (i + 1);
+                        const cell = student.schedule[day][i];
+                        if (!cell || !cell.subject) continue;
 
-                                // 모든 선생님의 해당 시간을 찾아서 학생 추가
-                                Object.keys(teacherData).forEach(teacher => {
-                                    if (teacherData[teacher][periodKey]) {
-                                        const classInfo = teacherData[teacher][periodKey].find(
-                                            item => item.subject === subject && item.homeroom === student.homeroom
-                                        );
-                                        if (classInfo && !classInfo.students.includes(student.name)) {
+                        const periodKey = day + (i + 1);
+
+                        if (!cell.electiveClassName) {
+                            // 고정수업: 역인덱스로 O(1) 조회하여 학생 추가
+                            if (cell.subject !== '자습' && cell.subject !== '공강') {
+                                const key = periodKey + '|' + cell.subject + '|' + student.homeroom;
+                                const matches = fixedClassIndex[key];
+                                if (matches) {
+                                    matches.forEach(classInfo => {
+                                        if (!classInfo.students.includes(student.name)) {
                                             classInfo.students.push(student.name);
                                         }
-                                    }
-                                });
-                            }
-                        }
-
-                        // 선택과목인지 확인 (elective-class-name 태그가 있는 경우)
-                        else if (content && content.includes('<span class="elective-class-name"')) {
-                            let classroom = '';
-                            let subject = '';
-                            let teacher = '';
-                            let electiveClassName = '';
-                            
-                            // 교실 정보 추출
-                            const locationStart = content.indexOf('<span class="location-chip">');
-                            const locationEnd = content.indexOf('</span>', locationStart);
-                            if (locationStart !== -1 && locationEnd !== -1) {
-                                classroom = content.substring(locationStart + 28, locationEnd);
-                            }
-                            
-                            // 과목 정보 추출
-                            const subjectStart = content.indexOf('<div class="subject-name">');
-                            const subjectEnd = content.indexOf('</div>', subjectStart);
-                            if (subjectStart !== -1 && subjectEnd !== -1) {
-                                subject = content.substring(subjectStart + 26, subjectEnd);
-                            }
-                            
-                            // 선택과목 반명 정보 추출
-                            const electiveClassNameStart = content.indexOf('<span class="elective-class-name"');
-                            if (electiveClassNameStart !== -1) {
-                                const electiveClassNameContentStart = content.indexOf('>', electiveClassNameStart) + 1;
-                                const electiveClassNameEnd = content.indexOf('</span>', electiveClassNameContentStart);
-                                if (electiveClassNameContentStart > 0 && electiveClassNameEnd !== -1) {
-                                    electiveClassName = content.substring(electiveClassNameContentStart, electiveClassNameEnd);
+                                    });
                                 }
                             }
-                            
-                            // 교사 정보 추출 (협력수업: 여러 교사가 있을 수 있음)
-                            const teachers = [];
-                            let searchPos = 0;
-                            while (true) {
-                                const tStart = content.indexOf('<span class="teacher-name">', searchPos);
-                                if (tStart === -1) break;
-                                const tEnd = content.indexOf('</span>', tStart);
-                                if (tEnd === -1) break;
-                                teachers.push(content.substring(tStart + 27, tEnd));
-                                searchPos = tEnd + 7;
-                            }
+                        } else {
+                            // 선택과목: 교사별 데이터에 추가
+                            const classroom = cell.location || '';
+                            const teachers = cell.teachers || [];
 
-                            if (teachers.length > 0 && subject) {
-                                const periodKey = day + (i + 1);
-
+                            if (teachers.length > 0 && cell.subject) {
                                 teachers.forEach(teacherItem => {
                                     const normalizedTeacher = normalizeTeacherName(teacherItem);
 
@@ -3151,9 +2954,8 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                                         teacherData[normalizedTeacher][periodKey] = [];
                                     }
 
-                                    // 같은 과목과 교실의 수업 찾기 (반명도 비교)
                                     let existingClass = teacherData[normalizedTeacher][periodKey].find(
-                                        item => item.subject === subject && item.classroom === classroom && item.electiveClassName === electiveClassName
+                                        item => item.subject === cell.subject && item.classroom === classroom && item.electiveClassName === cell.electiveClassName
                                     );
 
                                     if (existingClass) {
@@ -3162,12 +2964,11 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                                         }
                                     } else {
                                         teacherData[normalizedTeacher][periodKey].push({
-                                            subject: subject,
+                                            subject: cell.subject,
                                             classroom: classroom,
-                                            electiveClassName: electiveClassName,
+                                            electiveClassName: cell.electiveClassName,
                                             students: [student.name]
                                         });
-                                        console.log('[TEACHER_ELECTIVE] Added elective class:', subject, 'for teacher', normalizedTeacher, 'in', classroom, 'class:', electiveClassName);
                                     }
                                 });
                             }
@@ -3175,57 +2976,6 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                     }
                 });
             });
-            
-            console.log('[TEACHER_ELECTIVE] Final teacher data:', Object.keys(teacherData));
-        }
-
-        // 교실별 데이터 병합 함수
-        function mergeClassroomData(weeklyClassroomData, studentClassroomData) {
-            console.log('[MERGE] Starting to merge classroom data');
-            console.log('[MERGE] Weekly classrooms:', Object.keys(weeklyClassroomData));
-            console.log('[MERGE] Student classrooms:', Object.keys(studentClassroomData));
-            
-            // 학생 데이터의 교실별 정보를 주간시간표 데이터와 병합
-            Object.keys(studentClassroomData).forEach(classroom => {
-                const normalizedClassroom = normalizeClassroomName(classroom);
-                console.log('[MERGE] Processing classroom:', classroom, '→', normalizedClassroom);
-                
-                if (!weeklyClassroomData[normalizedClassroom]) {
-                    weeklyClassroomData[normalizedClassroom] = {};
-                    console.log('[MERGE] Created new classroom entry:', normalizedClassroom);
-                }
-                
-                Object.keys(studentClassroomData[classroom]).forEach(periodKey => {
-                    if (!weeklyClassroomData[normalizedClassroom][periodKey]) {
-                        weeklyClassroomData[normalizedClassroom][periodKey] = [];
-                    }
-                    
-                    // 학생 정보를 기존 수업에 추가하거나 새로운 수업 정보 생성
-                    const studentPeriodData = studentClassroomData[classroom][periodKey];
-                    studentPeriodData.forEach(studentInfo => {
-                        // 같은 과목과 교사를 찾아서 학생을 추가
-                        const existingClass = weeklyClassroomData[normalizedClassroom][periodKey].find(
-                            item => item.subject === studentInfo.subject && item.teacher === studentInfo.teacher
-                        );
-                        
-                        if (existingClass) {
-                            // 기존 수업에 학생 추가
-                            existingClass.students.push(...studentInfo.students);
-                            console.log('[MERGE] Added students to existing class:', studentInfo.subject, 'in', normalizedClassroom);
-                        } else {
-                            // 새로운 수업 정보 추가
-                            weeklyClassroomData[normalizedClassroom][periodKey].push({
-                                subject: studentInfo.subject,
-                                teacher: studentInfo.teacher,
-                                students: [...studentInfo.students]
-                            });
-                            console.log('[MERGE] Added new class:', studentInfo.subject, 'in', normalizedClassroom);
-                        }
-                    });
-                });
-            });
-            
-            console.log('[MERGE] Final merged classrooms:', Object.keys(weeklyClassroomData));
         }
 
         // 교사명 정규화 함수 (괄호와 숫자 제거)
@@ -3261,311 +3011,6 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
             return classroomStr;
         }
 
-        // 주간시간표에서 교실별 데이터 추출
-        function extractClassroomDataFromWeekly(weeklyData, weeklyFormat) {
-            console.log('[WEEKLY] Extracting classroom data from weekly schedule');
-            console.log('[WEEKLY] weeklyFormat:', weeklyFormat);
-            console.log('[WEEKLY] weeklyData length:', weeklyData ? weeklyData.length : 'null');
-            if (weeklyData && weeklyData.length > 0) {
-                console.log('[WEEKLY] First few rows:', weeklyData.slice(0, 5));
-            }
-            
-            const classroomData = {};
-            
-            if (!weeklyData || !Array.isArray(weeklyData)) {
-                console.log('[WEEKLY] No valid weekly data');
-                return classroomData;
-            }
-            
-            const daysInOrder = ['월', '화', '수', '목', '금'];
-            
-            if (weeklyFormat === 'formatB') {
-                // 압핀 양식 처리
-                const dayHeaders = weeklyData[2] || [];
-                const periodHeaders = weeklyData[3] || [];
-                
-                // 열별 요일/교시 매핑
-                const columnMap = {};
-                let currentDay = '';
-                for (let i = 1; i < dayHeaders.length; i++) {
-                    if (dayHeaders[i] && daysInOrder.includes(dayHeaders[i])) {
-                        currentDay = dayHeaders[i];
-                    }
-                    if (currentDay && periodHeaders[i]) {
-                        columnMap[i] = { day: currentDay, period: parseInt(periodHeaders[i], 10) };
-                    }
-                }
-                
-                // 과목과 교실 정보 추출
-                console.log('[WEEKLY formatB] Processing', weeklyData.length, 'rows');
-                for (let i = 4; i < weeklyData.length; i += 2) {
-                    const subjectRow = weeklyData[i];
-                    const locationRow = weeklyData[i + 1];
-                    
-                    if (!subjectRow || !locationRow) continue;
-                    if (locationRow[0] !== '' && locationRow[0] !== null) continue;
-                    
-                    console.log('[WEEKLY formatB] Processing subject row:', i, subjectRow.slice(0, 10));
-                    console.log('[WEEKLY formatB] Processing location row:', i+1, locationRow.slice(0, 10));
-                    
-                    for (let col = 1; col < subjectRow.length; col++) {
-                        const subject = subjectRow[col];
-                        const location = locationRow[col];
-                        const timeInfo = columnMap[col];
-                        
-                        if (subject && location && timeInfo) {
-                            console.log('[WEEKLY formatB] Found class:', subject, 'in', location, 'at', timeInfo.day + timeInfo.period);
-                            
-                            const normalizedClassroom = normalizeClassroomName(location);
-                            if (normalizedClassroom) {
-                                const periodKey = timeInfo.day + timeInfo.period;
-                                
-                                if (!classroomData[normalizedClassroom]) {
-                                    classroomData[normalizedClassroom] = {};
-                                }
-                                if (!classroomData[normalizedClassroom][periodKey]) {
-                                    classroomData[normalizedClassroom][periodKey] = [];
-                                }
-                                
-                                // 교사 정보 추출 (과목 문자열에서)
-                                let teacher = '';
-                                const teacherMatch = String(subject).match(/([가-힣]{2,4})$/);
-                                if (teacherMatch) {
-                                    teacher = teacherMatch[1];
-                                }
-                                
-                                const subjectName = String(subject).replace(/\\s*[가-힣]{2,4}$/, '').trim();
-                                
-                                // 중복 체크
-                                const existing = classroomData[normalizedClassroom][periodKey].find(
-                                    item => item.subject === subjectName && item.teacher === teacher
-                                );
-                                
-                                if (!existing) {
-                                    classroomData[normalizedClassroom][periodKey].push({
-                                        subject: subjectName,
-                                        teacher: teacher,
-                                        students: [] // 주간시간표에서는 학생 정보가 없음
-                                    });
-                                    console.log('[WEEKLY formatB] Added classroom:', normalizedClassroom, 'subject:', subjectName, 'teacher:', teacher);
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                // formatA (컴시간 양식) 처리
-                const totalCells = weeklyData.length > 0 && weeklyData[0].length > 1 ? weeklyData[0].length - 1 : 33;
-                const periodStructure = calculatePeriodStructure(totalCells, weeklyData);
-                console.log('[WEEKLY formatA] Period structure:', periodStructure);
-                
-                weeklyData.forEach((row, rowIndex) => {
-                    if (!row || !Array.isArray(row)) return;
-                    
-                    const teacherName = row[0] ? String(row[0]).trim().replace(/\(\d+\)$/, '') : '';
-                    const scheduleData = row.slice(1);
-                    let currentIndex = 0;
-                    
-                    console.log('[WEEKLY formatA] Processing row', rowIndex, 'teacher:', teacherName);
-                    
-                    for (let i = 0; i < daysInOrder.length; i++) {
-                        const day = daysInOrder[i];
-                        const count = periodStructure.periodCounts[i] || 0;
-                        const daySchedule = scheduleData.slice(currentIndex, currentIndex + count);
-                        
-                        daySchedule.forEach((cell, periodIndex) => {
-                            if (cell) {
-                                const cellStr = String(cell);
-                                console.log('[WEEKLY formatA] Cell content:', cellStr);
-                                
-                                // 컴시간 양식: "201 301 수학 홍길동" 형태
-                                if (/^\\d{3}\\s/.test(cellStr)) {
-                                    const remainingText = cellStr.substring(4).trim(); // "301 수학 홍길동"
-                                    
-                                    // 교실 정보 추출 (첫 번째 단어가 교실)
-                                    let classroom = '';
-                                    let subjectAndTeacher = remainingText;
-                                    
-                                    const classroomPatterns = [
-                                        /^(\d+\w*)\s+(.+)$/, // "301 수학 홍길동"
-                                        /^(\w+실\d*)\s+(.+)$/, // "과학실 물리 김선생"
-                                        /^(\w+교실\d*)\s+(.+)$/, // "음악교실 음악 이선생"
-                                        /^([A-Za-z]\d*)\s+(.+)$/, // "A101 영어 박선생"
-                                        /^(\w+관\d*)\s+(.+)$/ // "체육관 체육 최선생"
-                                    ];
-                                    
-                                    for (const pattern of classroomPatterns) {
-                                        const match = remainingText.match(pattern);
-                                        if (match) {
-                                            classroom = match[1];
-                                            subjectAndTeacher = match[2];
-                                            break;
-                                        }
-                                    }
-                                    
-                                    if (classroom) {
-                                        const normalizedClassroom = normalizeClassroomName(classroom);
-                                        const periodKey = day + (periodIndex + 1);
-                                        
-                                        if (!classroomData[normalizedClassroom]) {
-                                            classroomData[normalizedClassroom] = {};
-                                        }
-                                        if (!classroomData[normalizedClassroom][periodKey]) {
-                                            classroomData[normalizedClassroom][periodKey] = [];
-                                        }
-                                        
-                                        // 과목과 교사 정보 분리
-                                        const parsedInfo = parseSubjectAndTeacher(subjectAndTeacher);
-                                        
-                                        // 중복 체크
-                                        const existing = classroomData[normalizedClassroom][periodKey].find(
-                                            item => item.subject === parsedInfo.subject && item.teacher === parsedInfo.teacher
-                                        );
-                                        
-                                        if (!existing) {
-                                            classroomData[normalizedClassroom][periodKey].push({
-                                                subject: parsedInfo.subject,
-                                                teacher: parsedInfo.teacher,
-                                                students: [] // 주간시간표에서는 학생 정보가 없음
-                                            });
-                                            console.log('[WEEKLY formatA] Added classroom:', normalizedClassroom, 'subject:', parsedInfo.subject, 'teacher:', parsedInfo.teacher);
-                                        }
-                                    } else {
-                                        console.log('[WEEKLY formatA] No classroom found in:', remainingText);
-                                    }
-                                }
-                            }
-                        });
-                        currentIndex += count;
-                    }
-                });
-            }
-            
-            console.log('[WEEKLY] Final classroom data:', Object.keys(classroomData));
-            console.log('[WEEKLY] Total classrooms found:', Object.keys(classroomData).length);
-            return classroomData;
-        }
-        
-        // 주간시간표에서 선생님별 데이터 추출  
-        function extractTeacherDataFromWeekly(weeklyData) {
-            console.log('[WEEKLY] Extracting teacher data from weekly schedule');
-            const teacherSchedules = {};
-            
-            if (!weeklyData || !Array.isArray(weeklyData)) {
-                console.log('[WEEKLY] No valid weekly data');
-                return teacherSchedules;
-            }
-            
-            // 주간시간표 파싱 - forTeacherTimetable.html과 동일한 로직
-            const teachers = parseWeeklyTimetable(weeklyData);
-            
-            // 선생님별 시간표를 교실별 탭에서 사용할 수 있는 형식으로 변환
-            teachers.forEach(teacher => {
-                const days = ['월', '화', '수', '목', '금'];
-                days.forEach(day => {
-                    if (teacher.schedule && teacher.schedule[day]) {
-                        teacher.schedule[day].forEach((subject, periodIndex) => {
-                            if (subject && subject.trim() !== '') {
-                                const periodKey = day + (periodIndex + 1);
-                                
-                                if (!teacherSchedules[teacher.name]) {
-                                    teacherSchedules[teacher.name] = {};
-                                }
-                                if (!teacherSchedules[teacher.name][periodKey]) {
-                                    teacherSchedules[teacher.name][periodKey] = [];
-                                }
-                                
-                                // 교실과 과목 분리
-                                let classroom = '';
-                                let subjectName = subject;
-                                const match = subject.match(/^(\S+)\s+(.+)$/);
-                                if (match) {
-                                    classroom = match[1];
-                                    subjectName = match[2];
-                                }
-                                
-                                teacherSchedules[teacher.name][periodKey].push({
-                                    subject: subjectName,
-                                    classroom: classroom,
-                                    students: [] // 주간시간표에는 학생 정보가 없음
-                                });
-                            }
-                        });
-                    }
-                });
-            });
-            
-            return teacherSchedules;
-        }
-        
-        // 주간시간표 파싱 함수 (forTeacherTimetable.html에서 가져옴)
-        function parseWeeklyTimetable(data) {
-            // 양식 유형 자동 감지
-            const formatType = detectTimetableFormat(data);
-            
-            if (formatType === 'formatB') {
-                return parseTimetableFormatB(data);
-            } else {
-                return parseTimetableFormatA(data);
-            }
-        }
-        
-        function detectTimetableFormat(data) {
-            if (data.length >= 4) {
-                const row3 = data[2] || [];
-                const row4 = data[3] || [];
-                
-                if (row3.includes('번호') && row3.includes('교사') && 
-                    (row3.includes('월') || row3.includes('화'))) {
-                    return 'formatB';
-                }
-            }
-            return 'formatA';
-        }
-        
-        function parseTimetableFormatA(data) {
-            const teachers = [];
-            
-            let periodStructure = null;
-            if (data.length > 0 && data[0].length > 1) {
-                const totalCells = data[0].length - 1;
-                periodStructure = calculatePeriodStructure(totalCells, weeklyData);
-            }
-            
-            if (!periodStructure) {
-                periodStructure = {
-                    periodCounts: [7, 7, 7, 6, 6],
-                    maxPeriods: 7
-                };
-            }
-            
-            data.forEach(row => {
-                if (!row[0]) return;
-                
-                const teacherName = row[0].replace(/\(\d+\)/, '').trim();
-                const scheduleData = row.slice(1);
-                
-                const schedule = {};
-                let currentIndex = 0;
-                const daysInOrder = ['월', '화', '수', '목', '금'];
-                
-                for (let i = 0; i < daysInOrder.length && i < periodStructure.periodCounts.length; i++) {
-                    const day = daysInOrder[i];
-                    const count = periodStructure.periodCounts[i];
-                    schedule[day] = scheduleData.slice(currentIndex, currentIndex + count).map(cell => cell || '');
-                    currentIndex += count;
-                }
-                
-                teachers.push({ 
-                    name: teacherName, 
-                    schedule: schedule,
-                    maxPeriods: periodStructure.maxPeriods,
-                    periodCounts: periodStructure.periodCounts
-                });
-            });
-            return teachers;
-        }
-        
         function calculatePeriodStructure(totalCells, weeklyRaw = null) {
             // 실제 엑셀 데이터가 있다면 2행과 3행을 분석해서 정확한 교시 구조를 파악
             if (weeklyRaw && weeklyRaw.length >= 3) {
@@ -3582,8 +3027,6 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                             dayStartCols[String(cellValue).trim()] = col;
                         }
                     }
-                    
-                    console.log('감지된 요일 시작 위치:', dayStartCols);
                     
                     // 각 요일별 교시 수 계산
                     const periodCounts = [];
@@ -3609,14 +3052,12 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                             
                             const periodCount = endCol - startCol + 1;
                             periodCounts.push(periodCount);
-                            console.log(currentDay + '요일: 열 ' + startCol + '~' + endCol + ' = ' + periodCount + '교시');
                         } else {
                             periodCounts.push(0);
                         }
                     }
                     
                     const totalCalculated = periodCounts.reduce((a, b) => a + b, 0);
-                    console.log('계산된 교시 패턴:', periodCounts, '총합:', totalCalculated);
                     
                     // 계산된 총합이 실제 데이터 길이와 일치하거나 비슷하면 사용
                     if (totalCalculated > 0 && Math.abs(totalCalculated - totalCells) <= 2) {
@@ -3683,126 +3124,69 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
         function extractClassroomData(students) {
             const classroomData = {};
             const days = ['월', '화', '수', '목', '금'];
-            
-            console.log('[DEBUG] Extracting classroom data from', students.length, 'students');
-            
+
             students.forEach(student => {
                 days.forEach(day => {
                     for (let i = 0; i < student.maxPeriods; i++) {
-                        const content = student.schedule[day][i];
-                        if (content) {
-                            console.log('[PROCESS] Processing ' + student.name + ' - ' + day + (i+1) + ': "' + content + '"');
-                            
-                            let classroom = '';
-                            let subject = '';
-                            let teacher = '';
-                            
-                            let electiveClassName = '';
+                        const cell = student.schedule[day][i];
+                        if (!cell || !cell.subject) continue;
 
-                            // 선택과목 처리 (elective-class-name 태그가 있는 경우)
-                            if (content.includes('<span class="elective-class-name"')) {
-                                // 교실 정보 추출
-                                const locationStart = content.indexOf('<span class="location-chip">');
-                                const locationEnd = content.indexOf('</span>', locationStart);
-                                if (locationStart !== -1 && locationEnd !== -1) {
-                                    const rawClassroom = content.substring(locationStart + 28, locationEnd);
-                                    classroom = normalizeClassroomName(rawClassroom);
-                                }
+                        let classroom = '';
+                        let teacher = '';
+                        let electiveClassName = cell.electiveClassName || '';
 
-                                // 과목 정보 추출
-                                const subjectStart = content.indexOf('<div class="subject-name">');
-                                const subjectEnd = content.indexOf('</div>', subjectStart);
-                                if (subjectStart !== -1 && subjectEnd !== -1) {
-                                    subject = content.substring(subjectStart + 26, subjectEnd);
-                                }
+                        if (electiveClassName) {
+                            classroom = normalizeClassroomName(cell.location || '');
+                            teacher = (cell.teachers && cell.teachers.length > 0) ? cell.teachers[0] : '';
+                        } else {
+                            if (cell.subject === '자습' || cell.subject === '공강') continue;
+                            classroom = normalizeClassroomName(student.homeroom);
+                            teacher = (cell.teachers && cell.teachers.length > 0) ? cell.teachers[0] : '담임';
+                        }
 
-                                // 교사 정보 추출
-                                const teacherStart = content.indexOf('<span class="teacher-name">');
-                                const teacherEnd = content.indexOf('</span>', teacherStart);
-                                if (teacherStart !== -1 && teacherEnd !== -1) {
-                                    teacher = content.substring(teacherStart + 27, teacherEnd);
-                                }
+                        if (!classroom) continue;
 
-                                // 선택반명 추출
-                                const electiveStart = content.indexOf('<span class="elective-class-name"');
-                                const electiveContentStart = content.indexOf('>', electiveStart) + 1;
-                                const electiveEnd = content.indexOf('</span>', electiveContentStart);
-                                if (electiveContentStart > 0 && electiveEnd !== -1) {
-                                    electiveClassName = content.substring(electiveContentStart, electiveEnd);
-                                }
+                        const periodKey = day + (i + 1);
+
+                        if (!classroomData[classroom]) {
+                            classroomData[classroom] = {};
+                        }
+                        if (!classroomData[classroom][periodKey]) {
+                            classroomData[classroom][periodKey] = [];
+                        }
+
+                        let existing;
+                        if (electiveClassName) {
+                            existing = classroomData[classroom][periodKey].find(
+                                item => item.subject === cell.subject && item.teacher === teacher && item.electiveClassName === electiveClassName
+                            );
+                        } else {
+                            existing = classroomData[classroom][periodKey].find(
+                                item => item.subject === cell.subject && item.teacher === teacher && !item.electiveClassName
+                            );
+                        }
+
+                        if (existing) {
+                            if (!existing.students.includes(student.name)) {
+                                existing.students.push(student.name);
+                            }
+                        } else {
+                            const entry = {
+                                subject: cell.subject,
+                                teacher: teacher,
+                                students: [student.name]
+                            };
+                            if (electiveClassName) {
+                                entry.electiveClassName = electiveClassName;
                             } else {
-                                // 고정수업 처리 (elective-class-name 태그가 없는 경우)
-                                let plainText = '';
-                                const subjectTagStart = content.indexOf('<div class="subject-name">');
-                                if (subjectTagStart !== -1) {
-                                    const subjectTagEnd = content.indexOf('</div>', subjectTagStart);
-                                    if (subjectTagEnd !== -1) {
-                                        plainText = content.substring(subjectTagStart + 26, subjectTagEnd).trim();
-                                    }
-                                } else {
-                                    plainText = content.trim();
-                                }
-                                if (plainText && plainText !== '' && plainText !== '자습' && plainText !== '공강') {
-                                    subject = plainText;
-                                    // 고정수업의 경우 반별 교실 사용 (정규화 적용)
-                                    classroom = normalizeClassroomName(student.homeroom);
-                                    // 교사 정보가 HTML에 있으면 추출, 없으면 기본값
-                                    const teacherStart = content.indexOf('<span class="teacher-name">');
-                                    const teacherEnd = content.indexOf('</span>', teacherStart);
-                                    if (teacherStart !== -1 && teacherEnd !== -1) {
-                                        teacher = content.substring(teacherStart + 27, teacherEnd);
-                                    } else {
-                                        teacher = '담임'; // 기본값
-                                    }
-                                    console.log('[FIXED] Fixed class found: ' + subject + ' in ' + classroom + ' for ' + student.name);
-                                }
+                                entry.homeroom = student.homeroom;
                             }
-
-                            if (classroom && subject) {
-                                const periodKey = day + (i + 1);
-
-                                if (!classroomData[classroom]) {
-                                    classroomData[classroom] = {};
-                                }
-                                if (!classroomData[classroom][periodKey]) {
-                                    classroomData[classroom][periodKey] = [];
-                                }
-
-                                // 중복 체크
-                                let existing;
-                                if (electiveClassName) {
-                                    existing = classroomData[classroom][periodKey].find(
-                                        item => item.subject === subject && item.teacher === teacher && item.electiveClassName === electiveClassName
-                                    );
-                                } else {
-                                    existing = classroomData[classroom][periodKey].find(
-                                        item => item.subject === subject && item.teacher === teacher && !item.electiveClassName
-                                    );
-                                }
-
-                                if (existing) {
-                                    if (!existing.students.includes(student.name)) {
-                                        existing.students.push(student.name);
-                                    }
-                                } else {
-                                    const entry = {
-                                        subject: subject,
-                                        teacher: teacher,
-                                        students: [student.name]
-                                    };
-                                    if (electiveClassName) {
-                                        entry.electiveClassName = electiveClassName;
-                                    } else {
-                                        entry.homeroom = student.homeroom;
-                                    }
-                                    classroomData[classroom][periodKey].push(entry);
-                                }
-                            }
+                            classroomData[classroom][periodKey].push(entry);
                         }
                     }
                 });
             });
-            
+
             return classroomData;
         }
 
@@ -3813,94 +3197,53 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
             students.forEach(student => {
                 days.forEach(day => {
                     for (let i = 0; i < student.maxPeriods; i++) {
-                        const content = student.schedule[day][i];
-                        if (content) {
-                            let classroom = '';
-                            let subject = '';
-                            let teacher = '';
-                            let electiveClassName = '';
+                        const cell = student.schedule[day][i];
+                        if (!cell || !cell.subject) continue;
 
-                            // 교실 정보 추출
-                            const locationStart = content.indexOf('<span class="location-chip">');
-                            const locationEnd = content.indexOf('</span>', locationStart);
-                            if (locationStart !== -1 && locationEnd !== -1) {
-                                classroom = content.substring(locationStart + 28, locationEnd);
+                        const teachers = cell.teachers || [];
+                        if (teachers.length === 0) continue;
+
+                        const classroom = cell.location || '';
+                        const electiveClassName = cell.electiveClassName || '';
+                        const periodKey = day + (i + 1);
+
+                        teachers.forEach(teacherItem => {
+                            if (!teacherData[teacherItem]) {
+                                teacherData[teacherItem] = {};
+                            }
+                            if (!teacherData[teacherItem][periodKey]) {
+                                teacherData[teacherItem][periodKey] = [];
                             }
 
-                            // 과목 정보 추출
-                            const subjectStart = content.indexOf('<div class="subject-name">');
-                            const subjectEnd = content.indexOf('</div>', subjectStart);
-                            if (subjectStart !== -1 && subjectEnd !== -1) {
-                                subject = content.substring(subjectStart + 26, subjectEnd);
+                            let existing;
+                            if (electiveClassName) {
+                                existing = teacherData[teacherItem][periodKey].find(
+                                    item => item.subject === cell.subject && item.classroom === classroom && item.electiveClassName === electiveClassName
+                                );
+                            } else {
+                                existing = teacherData[teacherItem][periodKey].find(
+                                    item => item.subject === cell.subject && item.classroom === classroom && !item.electiveClassName
+                                );
                             }
 
-                            // 교사 정보 추출 (협력수업: 여러 교사가 있을 수 있음)
-                            const teachers = [];
-                            let tSearchPos = 0;
-                            while (true) {
-                                const tStart = content.indexOf('<span class="teacher-name">', tSearchPos);
-                                if (tStart === -1) break;
-                                const tEnd = content.indexOf('</span>', tStart);
-                                if (tEnd === -1) break;
-                                teachers.push(content.substring(tStart + 27, tEnd));
-                                tSearchPos = tEnd + 7;
-                            }
-
-                            // 선택반명 추출 (선택과목 여부 판별)
-                            const electiveStart = content.indexOf('<span class="elective-class-name"');
-                            if (electiveStart !== -1) {
-                                const electiveContentStart = content.indexOf('>', electiveStart) + 1;
-                                const electiveEnd = content.indexOf('</span>', electiveContentStart);
-                                if (electiveContentStart > 0 && electiveEnd !== -1) {
-                                    electiveClassName = content.substring(electiveContentStart, electiveEnd);
+                            if (existing) {
+                                if (!existing.students.includes(student.name)) {
+                                    existing.students.push(student.name);
                                 }
+                            } else {
+                                const entry = {
+                                    subject: cell.subject,
+                                    classroom: classroom || student.homeroom,
+                                    students: [student.name]
+                                };
+                                if (electiveClassName) {
+                                    entry.electiveClassName = electiveClassName;
+                                } else {
+                                    entry.homeroom = student.homeroom;
+                                }
+                                teacherData[teacherItem][periodKey].push(entry);
                             }
-
-                            if (teachers.length > 0 && subject) {
-                                const periodKey = day + (i + 1);
-
-                                teachers.forEach(teacherItem => {
-                                    if (!teacherData[teacherItem]) {
-                                        teacherData[teacherItem] = {};
-                                    }
-                                    if (!teacherData[teacherItem][periodKey]) {
-                                        teacherData[teacherItem][periodKey] = [];
-                                    }
-
-                                    let existing;
-                                    if (electiveClassName) {
-                                        existing = teacherData[teacherItem][periodKey].find(
-                                            item => item.subject === subject && item.classroom === classroom && item.electiveClassName === electiveClassName
-                                        );
-                                    } else {
-                                        existing = teacherData[teacherItem][periodKey].find(
-                                            item => item.subject === subject && item.classroom === classroom && !item.electiveClassName
-                                        );
-                                    }
-
-                                    if (existing) {
-                                        if (!existing.students.includes(student.name)) {
-                                            existing.students.push(student.name);
-                                        }
-                                    } else {
-                                        const entry = {
-                                            subject: subject,
-                                            classroom: classroom,
-                                            students: [student.name]
-                                        };
-                                        if (electiveClassName) {
-                                            entry.electiveClassName = electiveClassName;
-                                        } else {
-                                            if (!classroom) {
-                                                entry.classroom = student.homeroom;
-                                            }
-                                            entry.homeroom = student.homeroom;
-                                        }
-                                        teacherData[teacherItem][periodKey].push(entry);
-                                    }
-                                });
-                            }
-                        }
+                        });
                     }
                 });
             });
@@ -3927,21 +3270,8 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                 const student = allStudents.find(s => s.uniqueId === uniqueId);
                 if (!student) return '';
                 
-                const homeroom = student.homeroom || '';
-                const number = student.number || '';
-                
-                // 이름(학번) 형식으로 표시 - 학년+반+번호
-                let displayText = student.name;
-                if (homeroom && number && String(number).trim() !== '') {
-                    const parts = homeroom.split('-');
-                    if (parts.length === 2) {
-                        const grade = parts[0]; // 학년
-                        const classNum = parts[1].padStart(2, '0'); // 반 (2자리)
-                        const studentNum = String(number).trim().padStart(2, '0'); // 번호 (2자리)
-                        const studentId = grade + classNum + studentNum; // 예: 20506
-                        displayText = student.name + ' (' + studentId + ')';
-                    }
-                }
+                const studentId = formatStudentId(student.homeroom || '', student.number || '');
+                const displayText = studentId ? student.name + ' (' + studentId + ')' : student.name;
                 
                 return '<button class="favorite-chip" onclick="selectItem(\\'' + uniqueId + '\\')">' + displayText + '</button>';
             }).join('');
@@ -4313,17 +3643,6 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
 
 // 메인 HTML 템플릿 생성 함수 - 주간시간표 데이터 추가
 function getHtmlTemplate(dataJsonString, pageTitle, iconBase64, selectedTheme = 'serenity', enabledFeatures = {student: true, class: true, classroom: true, teacher: true}, weeklyData = null, weeklyFormat = 'formatA') {
-    // 디버깅: 매개변수 검증
-    console.log('Template received parameters:', {
-        dataLength: dataJsonString?.length || 0,
-        pageTitle,
-        hasIcon: !!iconBase64,
-        selectedTheme,
-        enabledFeatures,
-        hasWeeklyData: !!weeklyData,
-        weeklyFormat
-    });
-    
     return `<!DOCTYPE html>
 <html lang="ko">
 <head>
