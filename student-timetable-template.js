@@ -1499,29 +1499,33 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
         }
 
         function resolveStudentRows(studentNames) {
-            const usageIndexByName = {};
-            return (studentNames || []).map(name => {
-                const safeName = String(name || '').trim();
-                if (!usageIndexByName[safeName]) {
-                    usageIndexByName[safeName] = 0;
-                }
-
-                const candidates = studentIndexByName[safeName] || [];
-                const indexPointer = usageIndexByName[safeName];
-                usageIndexByName[safeName] = indexPointer + 1;
-
-                if (candidates.length > 0) {
-                    const selected = candidates[Math.min(indexPointer, candidates.length - 1)];
+            return (studentNames || []).map(entry => {
+                const safeEntry = String(entry || '').trim();
+                // uniqueId 형식 (name||homeroom||number) 처리
+                if (safeEntry.indexOf('||') !== -1) {
+                    const parts = safeEntry.split('||');
+                    const name = parts[0] || '';
+                    const homeroom = parts[1] || '';
+                    const number = parts[2] || '';
                     return {
-                        name: selected.name,
-                        homeroom: selected.homeroom || '',
-                        number: selected.number || '',
-                        studentId: selected.studentId || ''
+                        name: name,
+                        homeroom: homeroom,
+                        number: number,
+                        studentId: formatStudentId(homeroom, number)
                     };
                 }
-
+                // 기존 이름만 있는 경우 (하위 호환)
+                const candidates = studentIndexByName[safeEntry] || [];
+                if (candidates.length > 0) {
+                    return {
+                        name: candidates[0].name,
+                        homeroom: candidates[0].homeroom || '',
+                        number: candidates[0].number || '',
+                        studentId: candidates[0].studentId || ''
+                    };
+                }
                 return {
-                    name: safeName,
+                    name: safeEntry,
                     homeroom: '',
                     number: '',
                     studentId: ''
@@ -2810,8 +2814,8 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                                     const classInfo = classroomData[normalizedHomeroom][periodKey].find(
                                         item => item.subject === cell.subject && item.homeroom === student.homeroom
                                     );
-                                    if (classInfo && !classInfo.students.includes(student.name)) {
-                                        classInfo.students.push(student.name);
+                                    if (classInfo && !classInfo.students.includes(student.uniqueId)) {
+                                        classInfo.students.push(student.uniqueId);
                                     }
                                 }
                             }
@@ -2835,14 +2839,14 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                                 );
 
                                 if (existingClass) {
-                                    if (!existingClass.students.includes(student.name)) {
-                                        existingClass.students.push(student.name);
+                                    if (!existingClass.students.includes(student.uniqueId)) {
+                                        existingClass.students.push(student.uniqueId);
                                     }
                                 } else {
                                     classroomData[normalizedClassroom][periodKey].push({
                                         subject: cell.subject,
                                         teacher: teacher,
-                                        students: [student.name],
+                                        students: [student.uniqueId],
                                         electiveClassName: cell.electiveClassName
                                     });
                                 }
@@ -2932,8 +2936,8 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                                 const matches = fixedClassIndex[key];
                                 if (matches) {
                                     matches.forEach(classInfo => {
-                                        if (!classInfo.students.includes(student.name)) {
-                                            classInfo.students.push(student.name);
+                                        if (!classInfo.students.includes(student.uniqueId)) {
+                                            classInfo.students.push(student.uniqueId);
                                         }
                                     });
                                 }
@@ -2959,15 +2963,15 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                                     );
 
                                     if (existingClass) {
-                                        if (!existingClass.students.includes(student.name)) {
-                                            existingClass.students.push(student.name);
+                                        if (!existingClass.students.includes(student.uniqueId)) {
+                                            existingClass.students.push(student.uniqueId);
                                         }
                                     } else {
                                         teacherData[normalizedTeacher][periodKey].push({
                                             subject: cell.subject,
                                             classroom: classroom,
                                             electiveClassName: cell.electiveClassName,
-                                            students: [student.name]
+                                            students: [student.uniqueId]
                                         });
                                     }
                                 });
@@ -3167,14 +3171,14 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                         }
 
                         if (existing) {
-                            if (!existing.students.includes(student.name)) {
-                                existing.students.push(student.name);
+                            if (!existing.students.includes(student.uniqueId)) {
+                                existing.students.push(student.uniqueId);
                             }
                         } else {
                             const entry = {
                                 subject: cell.subject,
                                 teacher: teacher,
-                                students: [student.name]
+                                students: [student.uniqueId]
                             };
                             if (electiveClassName) {
                                 entry.electiveClassName = electiveClassName;
@@ -3227,14 +3231,14 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                             }
 
                             if (existing) {
-                                if (!existing.students.includes(student.name)) {
-                                    existing.students.push(student.name);
+                                if (!existing.students.includes(student.uniqueId)) {
+                                    existing.students.push(student.uniqueId);
                                 }
                             } else {
                                 const entry = {
                                     subject: cell.subject,
                                     classroom: classroom || student.homeroom,
-                                    students: [student.name]
+                                    students: [student.uniqueId]
                                 };
                                 if (electiveClassName) {
                                     entry.electiveClassName = electiveClassName;
