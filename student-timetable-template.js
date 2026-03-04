@@ -464,6 +464,20 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             background: var(--surface-soft);
             border-color: var(--primary-light);
         }
+        .pocket-cols-select {
+            padding: 9px 10px;
+            border: 1px solid var(--border-color);
+            background: var(--card-background);
+            color: var(--text-color);
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: none;
+        }
+        .pocket-cols-select.visible {
+            display: inline-block;
+        }
         .action-btn.favorited {
             background: var(--primary-color);
             border-color: var(--primary-color);
@@ -1215,15 +1229,14 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             }
             body.pocket-size .class-schedule-print-container {
                 display: grid !important;
-                grid-template-columns: repeat(2, 1fr) !important;
-                grid-template-rows: repeat(2, auto) !important;
-                grid-gap: 2.5mm !important;
+                grid-template-columns: repeat(var(--pocket-cols, 2), 1fr) !important;
+                grid-gap: 2mm !important;
                 width: 100% !important;
                 max-width: 200mm !important;
                 height: auto !important;
                 max-height: 270mm !important;
                 margin: 0 auto !important;
-                padding: 3mm !important;
+                padding: 2.5mm !important;
                 box-sizing: border-box !important;
                 page-break-inside: avoid !important;
                 page-break-after: always !important;
@@ -1237,12 +1250,12 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             body.pocket-size .student-print-page {
                 width: 100% !important;
                 height: auto !important;
-                max-height: 100mm !important;
+                max-height: 130mm !important;
                 display: block !important;
                 margin: 0 !important;
-                padding: 1.5mm !important;
+                padding: 1mm !important;
                 border: 0.5px solid #bbb !important;
-                border-radius: 2mm !important;
+                border-radius: 1.5mm !important;
                 page-break-inside: avoid !important;
                 page-break-before: auto !important;
                 page-break-after: auto !important;
@@ -1251,8 +1264,8 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             }
             body.pocket-size .student-print-page h3 {
                 font-size: 7pt !important;
-                margin: 0 0 1mm 0 !important;
-                padding: 0.5mm 1mm !important;
+                margin: 0 0 0.5mm 0 !important;
+                padding: 0.3mm 1mm !important;
                 text-align: left !important;
                 border-bottom: 0.4px solid #ccc !important;
                 font-weight: 700 !important;
@@ -1268,8 +1281,8 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             }
             body.pocket-size .student-print-page th,
             body.pocket-size .student-print-page td {
-                padding: 0.5mm !important;
-                height: 10mm !important;
+                padding: 0.3mm !important;
+                height: 9mm !important;
                 font-size: 6pt !important;
                 line-height: 1.15 !important;
                 border: 0.3px solid #ccc !important;
@@ -1338,6 +1351,9 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
                 display: none !important;
             }
             body.pocket-size h1 {
+                display: none !important;
+            }
+            .pocket-cols-select {
                 display: none !important;
             }
         }
@@ -2265,6 +2281,11 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                             '</svg> ' +
                             '포켓사이즈' +
                         '</button>' +
+                        '<select id="pocket-cols-select" class="pocket-cols-select" onchange="changePocketCols(this.value)" title="한 줄에 표시할 시간표 수">' +
+                            '<option value="2">2열</option>' +
+                            '<option value="3">3열</option>' +
+                            '<option value="4">4열</option>' +
+                        '</select>' +
                         '<button class="action-btn" onclick="window.print()">' +
                             '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
                                 '<polyline points="6 9 6 2 18 2 18 9"></polyline>' +
@@ -2279,8 +2300,9 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
             
             // 각 학생별로 완전한 페이지 생성
             students.forEach((student, index) => {
-                // 포켓사이즈 모드에서는 4개씩 그룹으로 페이지 나누기
-                if (index > 0 && index % 4 === 0) {
+                // 포켓사이즈 모드에서는 열수에 맞게 그룹으로 페이지 나누기
+                var perPage = pocketCols * 2;
+                if (index > 0 && index % perPage === 0) {
                     html += '</div><div class="class-schedule-print-container pocket-page-break">';
                 }
                 const studentId = formatStudentId(student.homeroom || '', student.number || '');
@@ -3295,10 +3317,13 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
             selectedIndex = -1; 
         }
 
+        let pocketCols = 2;
+
         function togglePocketSize() {
             const body = document.body;
             const toggleBtn = document.getElementById('pocket-toggle');
-            
+            const colsSelect = document.getElementById('pocket-cols-select');
+
             if (body.classList.contains('pocket-size')) {
                 // 포켓사이즈 해제
                 body.classList.remove('pocket-size');
@@ -3310,6 +3335,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                         '<path d="M6 12h12"></path>' +
                     '</svg> ' +
                     '포켓사이즈';
+                if (colsSelect) colsSelect.classList.remove('visible');
             } else {
                 // 포켓사이즈 활성화
                 body.classList.add('pocket-size');
@@ -3321,6 +3347,42 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                         '<path d="M6 12h12"></path>' +
                     '</svg> ' +
                     '포켓사이즈 ON';
+                if (colsSelect) colsSelect.classList.add('visible');
+                changePocketCols(pocketCols);
+            }
+        }
+
+        function changePocketCols(cols) {
+            pocketCols = parseInt(cols, 10) || 2;
+            var rows = 2;
+            if (pocketCols >= 3) rows = 2;
+            if (pocketCols === 4) rows = 2;
+            var perPage = pocketCols * rows;
+            document.documentElement.style.setProperty('--pocket-cols', pocketCols);
+            // 페이지 나누기 재구성
+            rebuildPocketPageBreaks(perPage);
+        }
+
+        function rebuildPocketPageBreaks(perPage) {
+            const container = document.getElementById('class-container');
+            if (!container) return;
+            // 기존 컨테이너 구조를 풀어서 단일 컨테이너로 재구성
+            const allPages = Array.from(container.parentElement.querySelectorAll('.student-print-page'));
+            if (allPages.length === 0) return;
+            // 기존 pocket-page-break 컨테이너들 모두 제거하고 첫 컨테이너에 모으기
+            const parent = container.parentElement;
+            const containers = Array.from(parent.querySelectorAll('.class-schedule-print-container'));
+            // 모든 student-print-page를 추출
+            containers.forEach(c => c.remove());
+            // 새로운 컨테이너들 생성
+            for (var i = 0; i < allPages.length; i += perPage) {
+                var div = document.createElement('div');
+                div.className = 'class-schedule-print-container' + (i > 0 ? ' pocket-page-break' : '');
+                if (i === 0) div.id = 'class-container';
+                for (var j = i; j < Math.min(i + perPage, allPages.length); j++) {
+                    div.appendChild(allPages[j]);
+                }
+                parent.appendChild(div);
             }
         }
 
