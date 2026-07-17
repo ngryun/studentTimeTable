@@ -250,6 +250,24 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
         * {
             box-sizing: border-box;
         }
+        .sr-only {
+            position: absolute !important;
+            width: 1px !important;
+            height: 1px !important;
+            padding: 0 !important;
+            margin: -1px !important;
+            overflow: hidden !important;
+            clip: rect(0, 0, 0, 0) !important;
+            white-space: nowrap !important;
+            border: 0 !important;
+        }
+        button:focus-visible,
+        input:focus-visible,
+        select:focus-visible,
+        [role="option"]:focus-visible {
+            outline: 3px solid var(--primary-color);
+            outline-offset: 3px;
+        }
         body {
             font-family: 'Pretendard Variable', 'Noto Sans KR', sans-serif;
             margin: 0;
@@ -352,6 +370,12 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
         }
         #search-input:focus {
             border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px ${withAlpha(basePrimary, 0.18)};
+        }
+        #search-input:focus-visible,
+        .teacher-sidebar-search input:focus-visible {
+            outline: 3px solid var(--primary-color);
+            outline-offset: 3px;
         }
         .search-icon {
             position: absolute;
@@ -691,6 +715,7 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
         }
         .teacher-sidebar-search input:focus {
             border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px ${withAlpha(basePrimary, 0.18)};
         }
         .teacher-sidebar-search input::placeholder {
             color: var(--subtle-text);
@@ -1048,7 +1073,7 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
                 min-width: 120px;
             }
             table {
-                font-size: 11px;
+                font-size: 12px;
                 min-width: 0 !important;
                 width: 100% !important;
                 table-layout: fixed !important;
@@ -1071,17 +1096,17 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
             }
             .location-chip,
             .teacher-name {
-                font-size: 9px;
+                font-size: 11px;
                 padding: 1px 5px;
             }
             .elective-class-badge {
-                font-size: 9px;
+                font-size: 11px;
                 min-width: 18px;
                 height: 18px;
                 padding: 0 5px;
             }
             .student-list-btn {
-                font-size: 9px;
+                font-size: 11px;
                 padding: 2px 6px;
             }
             .elective-subject-line {
@@ -1135,6 +1160,22 @@ function generateTimetableCSS(selectedTheme = 'serenity') {
                 width: 100%;
                 padding: 0 4px 6px;
                 text-align: left;
+            }
+            button,
+            select,
+            .tab-button,
+            .favorite-chip,
+            .action-btn,
+            .teacher-sidebar-item,
+            .student-list-btn,
+            .modal-close-btn,
+            .modal-secondary-btn,
+            .modal-primary-btn {
+                min-height: 44px;
+            }
+            .sidebar-fav-clear {
+                min-height: 44px;
+                font-size: 11px;
             }
             .empty-state {
                 padding: 56px 20px;
@@ -1411,11 +1452,89 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
         let filteredData = []; 
         let selectedIndex = -1;
         let currentMode = ''; // 초기값은 빈 문자열로, setupTabs에서 설정됨
+        const LAST_TAB_COOKIE = 'studentTimetableLastTab';
+        const LAST_TAB_STORAGE_KEY = 'studentTimetableLastTab';
 
         const scheduleContainer = document.getElementById('schedule-container');
         const studentListStore = {};
         let studentListCounter = 0;
         const studentIndexByName = buildStudentIndex(allStudents);
+
+        function getCookieValue(name) {
+            const prefix = name + '=';
+            const cookie = document.cookie.split('; ').find(item => item.indexOf(prefix) === 0);
+            return cookie ? decodeURIComponent(cookie.slice(prefix.length)) : '';
+        }
+
+        function getRememberedTabMode() {
+            const cookieMode = getCookieValue(LAST_TAB_COOKIE);
+            if (cookieMode) return cookieMode;
+            try {
+                return localStorage.getItem(LAST_TAB_STORAGE_KEY) || '';
+            } catch (error) {
+                return '';
+            }
+        }
+
+        function rememberTabMode(mode) {
+            if (!mode) return;
+            document.cookie = LAST_TAB_COOKIE + '=' + encodeURIComponent(mode) + '; Max-Age=31536000; Path=/; SameSite=Lax';
+            try {
+                localStorage.setItem(LAST_TAB_STORAGE_KEY, mode);
+            } catch (error) {
+                // file:// 환경 등 저장소가 제한된 경우 쿠키만 사용합니다.
+            }
+        }
+
+        function applyTabState(activeButton) {
+            if (!activeButton) return;
+            document.querySelectorAll('.tab-button').forEach(button => {
+                const isActive = button === activeButton;
+                button.classList.toggle('active', isActive);
+                button.setAttribute('aria-selected', String(isActive));
+                button.setAttribute('tabindex', isActive ? '0' : '-1');
+            });
+            currentMode = activeButton.dataset.mode;
+            rememberTabMode(currentMode);
+
+            const panel = document.getElementById('timetable-panel');
+            if (panel && activeButton.id) {
+                panel.setAttribute('aria-labelledby', activeButton.id);
+            }
+        }
+
+        function activateTab(activeButton, shouldFocus = false) {
+            applyTabState(activeButton);
+            if (shouldFocus) activeButton.focus();
+            updateSearchSection();
+            showEmptyState();
+        }
+
+        function bindTabInteractions(tabButtons) {
+            const buttons = Array.from(tabButtons);
+            buttons.forEach(button => {
+                button.addEventListener('click', () => activateTab(button));
+                button.addEventListener('keydown', event => {
+                    const currentIndex = buttons.indexOf(event.currentTarget);
+                    let nextIndex = currentIndex;
+
+                    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+                        nextIndex = (currentIndex + 1) % buttons.length;
+                    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+                        nextIndex = (currentIndex - 1 + buttons.length) % buttons.length;
+                    } else if (event.key === 'Home') {
+                        nextIndex = 0;
+                    } else if (event.key === 'End') {
+                        nextIndex = buttons.length - 1;
+                    } else {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    activateTab(buttons[nextIndex], true);
+                });
+            });
+        }
 
         function buildStudentIndex(students) {
             const index = {};
@@ -1913,10 +2032,10 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                 const tabNavigation = document.querySelector('.tab-navigation');
                 if (tabNavigation) {
                     tabNavigation.innerHTML = '' +
-                        '<button class="tab-button active" data-mode="student"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>학생별</button>' +
-                        '<button class="tab-button" data-mode="class"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>반별</button>' +
-                        '<button class="tab-button" data-mode="classroom"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>교실별</button>' +
-                        '<button class="tab-button" data-mode="teacher"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>선생님별</button>';
+                        '<button type="button" id="tab-student" class="tab-button active" data-mode="student" role="tab" aria-selected="true" aria-controls="timetable-panel" tabindex="0"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>학생별</button>' +
+                        '<button type="button" id="tab-class" class="tab-button" data-mode="class" role="tab" aria-selected="false" aria-controls="timetable-panel" tabindex="-1"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>반별</button>' +
+                        '<button type="button" id="tab-classroom" class="tab-button" data-mode="classroom" role="tab" aria-selected="false" aria-controls="timetable-panel" tabindex="-1"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>교실별</button>' +
+                        '<button type="button" id="tab-teacher" class="tab-button" data-mode="teacher" role="tab" aria-selected="false" aria-controls="timetable-panel" tabindex="-1"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>선생님별</button>';
                     currentMode = 'student';  
                     setupBasicEventListeners();
                 }
@@ -1932,15 +2051,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
         }
         
         function setupBasicEventListeners() {
-            document.querySelectorAll('.tab-button').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    currentMode = btn.dataset.mode;
-                    updateSearchSection();
-                    showEmptyState();
-                });
-            });
+            bindTabInteractions(document.querySelectorAll('.tab-button'));
         }
 
         function setupTabs() {
@@ -1969,22 +2080,22 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
 
             if (safeFeatures.student) {
                 availableModes.push('student');
-                tabsHtml.push('<button class="tab-button" data-mode="student">' + tabIcons.student + tabLabels.student + '</button>');
+                tabsHtml.push('<button type="button" id="tab-student" class="tab-button" data-mode="student" role="tab" aria-selected="false" aria-controls="timetable-panel" tabindex="-1">' + tabIcons.student + tabLabels.student + '</button>');
 
             }
             if (safeFeatures.class) {
                 availableModes.push('class');
-                tabsHtml.push('<button class="tab-button" data-mode="class">' + tabIcons.class + tabLabels.class + '</button>');
+                tabsHtml.push('<button type="button" id="tab-class" class="tab-button" data-mode="class" role="tab" aria-selected="false" aria-controls="timetable-panel" tabindex="-1">' + tabIcons.class + tabLabels.class + '</button>');
 
             }
             if (safeFeatures.classroom) {
                 availableModes.push('classroom');
-                tabsHtml.push('<button class="tab-button" data-mode="classroom">' + tabIcons.classroom + tabLabels.classroom + '</button>');
+                tabsHtml.push('<button type="button" id="tab-classroom" class="tab-button" data-mode="classroom" role="tab" aria-selected="false" aria-controls="timetable-panel" tabindex="-1">' + tabIcons.classroom + tabLabels.classroom + '</button>');
 
             }
             if (safeFeatures.teacher) {
                 availableModes.push('teacher');
-                tabsHtml.push('<button class="tab-button" data-mode="teacher">' + tabIcons.teacher + tabLabels.teacher + '</button>');
+                tabsHtml.push('<button type="button" id="tab-teacher" class="tab-button" data-mode="teacher" role="tab" aria-selected="false" aria-controls="timetable-panel" tabindex="-1">' + tabIcons.teacher + tabLabels.teacher + '</button>');
 
             }
 
@@ -1995,27 +2106,15 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                 return;
             }
             
-            // 첫 번째 사용 가능한 모드를 기본값으로 설정
-            currentMode = availableModes[0];
+            const rememberedMode = getRememberedTabMode();
+            currentMode = availableModes.includes(rememberedMode) ? rememberedMode : availableModes[0];
 
             tabNavigation.innerHTML = tabsHtml.join('');
 
-            // 첫 번째 탭을 활성화
-            const firstTab = document.querySelector('.tab-button');
-            if (firstTab) {
-                firstTab.classList.add('active');
-            }
-
-            // 탭 클릭 이벤트
-            document.querySelectorAll('.tab-button').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    currentMode = btn.dataset.mode;
-                    updateSearchSection();
-                    showEmptyState();
-                });
-            });
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const activeTab = tabNavigation.querySelector('.tab-button[data-mode="' + currentMode + '"]') || tabButtons[0];
+            applyTabState(activeTab);
+            bindTabInteractions(tabButtons);
         }
 
         function setupEventListeners() {
@@ -2026,6 +2125,8 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
             
             searchInput.addEventListener('input', e => {
                 const query = e.target.value.trim().toLowerCase();
+                selectedIndex = -1;
+                searchInput.removeAttribute('aria-activedescendant');
                 if (query === '') {
                     filteredData = [];
                     hideDropdown();
@@ -2064,7 +2165,16 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                         return;
                     case 'Escape': hideDropdown(); return;
                 }
-                items.forEach((item, index) => item.classList.toggle('selected', index === selectedIndex));
+                items.forEach((item, index) => {
+                    const isSelected = index === selectedIndex;
+                    item.classList.toggle('selected', isSelected);
+                    item.setAttribute('aria-selected', String(isSelected));
+                });
+                if (selectedIndex >= 0 && items[selectedIndex]) {
+                    searchInput.setAttribute('aria-activedescendant', items[selectedIndex].id);
+                } else {
+                    searchInput.removeAttribute('aria-activedescendant');
+                }
             });
 
             document.addEventListener('click', (e) => {
@@ -2086,14 +2196,15 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                 // 학생별 탭: 검색창 + 즐겨찾기
                 searchSection.innerHTML = '' +
                     '<div class="search-container">' +
+                        '<label class="sr-only" for="search-input">학생 이름 또는 학번 검색</label>' +
                         '<div class="search-icon">' +
                             '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
                                 '<circle cx="11" cy="11" r="8"></circle>' +
                                 '<line x1="21" y1="21" x2="16.65" y2="16.65"></line>' +
                             '</svg>' +
                         '</div>' +
-                        '<input type="text" id="search-input" placeholder="학생 이름 또는 학번을 입력하세요...">' +
-                        '<div class="autocomplete-dropdown" id="autocomplete-dropdown"></div>' +
+                        '<input type="text" id="search-input" placeholder="학생 이름 또는 학번을 입력하세요..." role="combobox" aria-autocomplete="list" aria-controls="autocomplete-dropdown" aria-expanded="false" autocomplete="off">' +
+                        '<div class="autocomplete-dropdown" id="autocomplete-dropdown" role="listbox" aria-label="학생 검색 결과"></div>' +
                     '</div>' +
                     '<div class="favorites-section">' +
                         '<div class="favorites-title">자주 찾는 학생</div>' +
@@ -2150,7 +2261,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                 return; 
             }
             
-            autocompleteDropdown.innerHTML = filteredData.map(item => {
+            autocompleteDropdown.innerHTML = filteredData.map((item, index) => {
                 const icon = '';
                 let displayName = '';
                 
@@ -2162,7 +2273,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                     displayName = item.name || '이름없음';
                 }
                 
-                return '<div class="autocomplete-item" onclick="selectItem(\\'' + (item.uniqueId || '') + '\\')">' + icon + ' ' + displayName + '</div>';
+                return '<div class="autocomplete-item" id="student-search-option-' + index + '" role="option" aria-selected="false" tabindex="-1" onclick="selectItem(\\'' + (item.uniqueId || '') + '\\')">' + icon + ' ' + displayName + '</div>';
             }).join('');
             showDropdown();
         }
@@ -2210,7 +2321,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                         '<h2>' + displayName + '</h2>' +
                     '</div>' +
                     '<div class="schedule-actions">' +
-                        '<button class="action-btn ' + (isFavorite ? 'favorited' : '') + '" onclick="toggleFavorite(\\'' + uniqueId + '\\');">' +
+                        '<button type="button" class="action-btn ' + (isFavorite ? 'favorited' : '') + '" aria-pressed="' + String(isFavorite) + '" onclick="toggleFavorite(\\'' + uniqueId + '\\');">' +
                             '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="' + (isFavorite ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="2">' +
                                 '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>' +
                             '</svg> ' +
@@ -2436,7 +2547,7 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                         '<h2>' + teacherId + ' 선생님 시간표</h2>' +
                     '</div>' +
                     '<div class="schedule-actions">' +
-                        '<button class="action-btn ' + (isFavorite ? 'favorited' : '') + '" onclick="toggleTeacherFavorite(\\'' + teacherId + '\\');">' +
+                        '<button type="button" class="action-btn ' + (isFavorite ? 'favorited' : '') + '" aria-pressed="' + String(isFavorite) + '" onclick="toggleTeacherFavorite(\\'' + teacherId + '\\');">' +
                             '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="' + (isFavorite ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="2">' +
                                 '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>' +
                             '</svg> ' +
@@ -3305,14 +3416,21 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
         
         function showDropdown() { 
             const autocompleteDropdown = document.getElementById('autocomplete-dropdown');
+            const searchInput = document.getElementById('search-input');
             if (filteredData.length > 0 && autocompleteDropdown) {
                 autocompleteDropdown.style.display = 'block'; 
+                if (searchInput) searchInput.setAttribute('aria-expanded', 'true');
             }
         }
         function hideDropdown() { 
             const autocompleteDropdown = document.getElementById('autocomplete-dropdown');
+            const searchInput = document.getElementById('search-input');
             if (autocompleteDropdown) {
                 autocompleteDropdown.style.display = 'none'; 
+            }
+            if (searchInput) {
+                searchInput.setAttribute('aria-expanded', 'false');
+                searchInput.removeAttribute('aria-activedescendant');
             }
             selectedIndex = -1; 
         }
@@ -3425,10 +3543,11 @@ function generateTimetableJS(dataJsonString, enabledFeatures, weeklyData, weekly
                 '<div class="teacher-sidebar" id="teacher-sidebar">' +
                     '<div class="teacher-sidebar-header">' +
                         '<div class="teacher-sidebar-search">' +
+                            '<label class="sr-only" for="teacher-sidebar-filter">선생님 이름 검색</label>' +
                             '<span class="sidebar-search-icon">' +
                                 '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>' +
                             '</span>' +
-                            '<input type="text" id="teacher-sidebar-filter" placeholder="이름 검색...">' +
+                            '<input type="text" id="teacher-sidebar-filter" placeholder="이름 검색..." autocomplete="off">' +
                         '</div>' +
                     '</div>' +
                     '<div class="teacher-sidebar-list" id="teacher-sidebar-list">' +
@@ -3730,15 +3849,17 @@ function getHtmlTemplate(dataJsonString, pageTitle, iconBase64, selectedTheme = 
             <span>${pageTitle}</span>
         </h1>
         
-        <div class="tab-navigation">
+        <div class="tab-navigation" role="tablist" aria-label="시간표 조회 방식">
             <!-- 탭은 JavaScript에서 동적으로 생성됩니다 -->
         </div>
-        
-        <div id="search-section">
-            <!-- 검색/선택 영역은 JavaScript에서 동적으로 생성됩니다 -->
+
+        <div id="timetable-panel" role="tabpanel">
+            <div id="search-section">
+                <!-- 검색/선택 영역은 JavaScript에서 동적으로 생성됩니다 -->
+            </div>
+
+            <div id="schedule-container"></div>
         </div>
-        
-        <div id="schedule-container"></div>
     </div>
 
     <div id="student-list-modal" class="student-list-modal" aria-hidden="true">
